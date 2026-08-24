@@ -1,0 +1,129 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  MARKER_PREFIX,
+  generateAdapter,
+  makeMarker,
+  parseGeneratedSource,
+  serializeFrontmatter,
+  splitFrontmatter,
+} from "../src/engine/rules.js";
+
+describe("splitFrontmatter", () => {
+  it("parses a frontmatter block and body", () => {
+    const { frontmatter, body } = splitFrontmatter('---\ndescription: "My rule"\nglobs: **/*.ts\n---\n\n# Body\n');
+    expect(frontmatter.description).toBe("My rule");
+    expect(frontmatter.globs).toBe("**/*.ts");
+    expect(body).toBe("# Body\n");
+  });
+
+  it("returns empty when no frontmatter", () => {
+    const { frontmatter, body } = splitFrontmatter("# Just a body\n");
+    expect(Object.keys(frontmatter)).toHaveLength(0);
+    expect(body).toBe("# Just a body\n");
+  });
+
+  it("handles unterminated frontmatter", () => {
+    const { frontmatter } = splitFrontmatter("---\nkey: value");
+    expect(Object.keys(frontmatter)).toHaveLength(0);
+  });
+});
+
+describe("serializeFrontmatter", () => {
+  it("quotes values with special characters", () => {
+    const out = serializeFrontmatter({ description: "Has: colon" });
+    expect(out).toBe('---\ndescription: "Has: colon"\n---\n');
+  });
+
+  it("leaves plain values bare", () => {
+    const out = serializeFrontmatter({ globs: "**/*.{ts,tsx}" });
+    expect(out).toBe("---\nglobs: **/*.{ts,tsx}\n---\n");
+  });
+});
+
+describe("generateAdapter", () => {
+  const source = `---
+description: Review checklist
+globs: "**/*.ts"
+alwaysApply: false
+---
+
+# Review
+
+Always run tests.
+`;
+
+  it("is deterministic", () => {
+    const a = generateAdapter({
+      sourceRelPath: ".agents/rules/review.md",
+      sourceContent: source,
+      format: "mdc",
+    });
+    const b = generateAdapter({
+      sourceRelPath: ".agents/rules/review.md",
+      sourceContent: source,
+      format: "mdc",
+    });
+    expect(a).toBe(b);
+  });
+
+  it("emits mdc frontmatter carrying over globs", () => {
+    const out = generateAdapter({
+      sourceRelPath: ".agents/rules/review.md",
+      sourceContent: source,
+      format: "mdc",
+    });
+    expect(out).toContain("description: Review checklist");
+    expect(out).toContain("globs: **/*.ts");
+    expect(out).toContain("alwaysApply: false");
+    expect(out).toContain(makeMarker(".agents/rules/review.md"));
+    expect(out).toContain("# Review");
+  });
+
+  it("defaults alwaysApply true when no globs present", () => {
+    const out = generateAdapter({
+      sourceRelPath: "r.md",
+      sourceContent: "# T\n\nBody text\n",
+      format: "mdc",
+    });
+    expect(out).toContain("description: T");
+    expect(out).toContain("alwaysApply: true");
+    expect(out).not.toContain("globs:");
+  });
+
+  it("maps globs to applyTo for copilot", () => {
+    const out = generateAdapter({
+      sourceRelPath: "review.md",
+      sourceContent: source,
+      format: "copilot-instructions",
+    });
+    expect(out).toContain("applyTo: **/*.ts");
+  });
+
+  it("maps trigger for windsurf", () => {
+    const withGlobs = generateAdapter({
+      sourceRelPath: "review.md",
+      sourceContent: source,
+      format: "windsurf",
+    });
+    expect(withGlobs).toContain("trigger: glob");
+
+    const noGlobs = generateAdapter({
+      sourceRelPath: "review.md",
+      sourceContent: "# T\nbody\n",
+      format: "windsurf",
+    });
+    expect(noGlobs).toContain("trigger: always_on");
+  });
+
+  it("marker roundtrips through parseGeneratedSource", () => {
+    const src = "AGENTS.md";
+    const content = `---\nx: 1\n---\n${makeMarker(src)}\n\nbody\n`;
+    expect(parseGeneratedSource(content)).toBe(src);
+  });
+
+  it("parseGeneratedSource returns null without marker", () => {
+    expect(parseGeneratedSource("# no marker\n")).toBeNull();
+    expect(MARKER_PREFIX.endsWith("Source: ")).toBe(true);
+  });
+});

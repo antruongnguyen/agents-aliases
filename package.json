@@ -1,0 +1,52 @@
+{
+  "name": "agents-aliases",
+  "version": "0.1.0",
+  "description": "Zero-config CLI that aliases CLAUDE.md, AGENTS.md, Copilot instructions, skills, rules and plugins across AI coding agents — one source of truth per project.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "agents-aliases": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "agents",
+    "claude-code",
+    "codex",
+    "copilot",
+    "cursor",
+    "windsurf",
+    "gemini",
+    "opencode",
+    "agents-md",
+    "claude-md",
+    "symlink",
+    "ai",
+    "cli"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "pnpm build && vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint src test",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build && pnpm test && pnpm typecheck && pnpm lint"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "oxlint": "^1.0.0",
+    "prettier": "^3.6.0",
+    "tsdown": "^0.12.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}
