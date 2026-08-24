@@ -1,10 +1,12 @@
 import * as p from "@clack/prompts";
+import pc from "picocolors";
 
 import { detect } from "../detect.js";
 import { applyPlan, makeDefaultChoices, plan } from "../engine/planner.js";
 import type { Choices } from "../engine/planner.js";
 import { parseAgentList } from "../presets.js";
 import { isInteractive, runWizard } from "../ui/prompts.js";
+import { renderSetupSummary } from "../ui/summary.js";
 import { logPlan } from "./preview.js";
 
 export interface InitOptions {
@@ -37,7 +39,6 @@ export async function runInit(options: InitOptions): Promise<number> {
   }
 
   const planResult = await plan(detection, choices);
-  logPlan(planResult);
 
   const hasWork =
     planResult.actions.length > 0 ||
@@ -49,38 +50,46 @@ export async function runInit(options: InitOptions): Promise<number> {
     return 0;
   }
 
+  const interactiveConfirm = isInteractive() && !options.yes;
+
+  if (interactiveConfirm) {
+    console.log();
+    p.note(renderSetupSummary(planResult), "Setup Summary");
+  } else {
+    logPlan(planResult);
+  }
+
   if (options.dryRun) {
     p.outro("Dry run — no changes were made.");
     return planResult.blocked.length > 0 ? 1 : 0;
   }
 
-  const proceed =
-    isInteractive() && !options.yes
-      ? await p.confirm({ message: "Apply this plan?", initialValue: true })
-      : true;
-  if (p.isCancel(proceed)) {
-    p.cancel("Cancelled.");
-    return 0;
-  }
-  if (!proceed) {
-    p.outro("Aborted. Nothing was changed.");
-    return 0;
+  if (interactiveConfirm) {
+    const proceed = await p.confirm({ message: "Proceed with this setup?", initialValue: true });
+    if (p.isCancel(proceed)) {
+      p.cancel("Cancelled.");
+      return 0;
+    }
+    if (!proceed) {
+      p.outro("Aborted. Nothing was changed.");
+      return 0;
+    }
   }
 
   const spinner = p.spinner();
   spinner.start("Applying plan…");
   const summary = await applyPlan(detection, planResult, false);
   const parts = [
-    summary.scaffolded && `${summary.scaffolded} scaffolded`,
-    summary.created && `${summary.created} links created`,
-    summary.replaced && `${summary.replaced} replaced`,
-    summary.repaired && `${summary.repaired} repaired`,
-    summary.generated && `${summary.generated} generated`,
+    summary.scaffolded && pc.green(`${summary.scaffolded} scaffolded`),
+    summary.created && pc.green(`${summary.created} links created`),
+    summary.replaced && pc.yellow(`${summary.replaced} replaced`),
+    summary.repaired && pc.yellow(`${summary.repaired} repaired`),
+    summary.generated && pc.green(`${summary.generated} generated`),
   ].filter(Boolean);
   if (summary.errors.length === 0 && planResult.blocked.length === 0) {
-    spinner.stop(`Done: ${parts.join(", ") || "no changes"}.`);
+    spinner.stop(`Done: ${parts.join(pc.dim(", ")) || "no changes"}.`);
   } else {
-    spinner.stop("Finished with warnings.", 1);
+    spinner.stop(pc.yellow("Finished with warnings."));
   }
   for (const err of summary.errors) p.log.error(err);
   for (const b of planResult.blocked) p.log.warn(`Blocked: ${b}`);
@@ -88,6 +97,6 @@ export async function runInit(options: InitOptions): Promise<number> {
   if (planResult.blocked.length === 0 && summary.errors.length === 0) {
     p.note("Commit the new symlinks so your team gets the same wiring.", "next steps");
   }
-  p.outro("Done.");
+  p.outro(pc.green("Done."));
   return summary.errors.length > 0 ? 1 : planResult.blocked.length > 0 ? 1 : 0;
 }

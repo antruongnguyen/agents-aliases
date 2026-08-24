@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 const confirmMock = vi.fn(async () => true);
 const selectMock = vi.fn(async (opts: { initialValue?: string }) => opts.initialValue);
-const multiselectMock = vi.fn(async () => []);
+const searchMock = vi.fn(async (opts: { items: { value: string }[] }) =>
+  opts.items.map((i) => i.value),
+);
 
 vi.mock("@clack/prompts", () => ({
   intro: vi.fn(),
@@ -13,9 +15,13 @@ vi.mock("@clack/prompts", () => ({
   spinner: vi.fn(() => ({ start: vi.fn(), stop: vi.fn() })),
   confirm: (...args: unknown[]) => confirmMock(...(args as [])),
   select: ((opts: { initialValue?: string }) => selectMock(opts)) as unknown,
-  multiselect: (() => multiselectMock()) as unknown,
   isCancel: () => false,
   text: vi.fn(async () => ""),
+}));
+
+vi.mock("../src/ui/search-multiselect.js", () => ({
+  cancelSymbol: Symbol("cancel"),
+  searchMultiselect: (opts: { items: { value: string }[] }) => searchMock(opts),
 }));
 
 import { detect } from "../src/detect.js";
@@ -45,8 +51,9 @@ describe("runWizard (defaults accepted)", () => {
       presetsByConcern("skills").map((p) => p.id).filter((id) => id !== "skills-shared"),
     );
     expect(choices!.rules.canonicalId).toBe("rules-cursor");
-    expect(choices!.plugins.enabled).toBe(true);
-    expect(multiselectMock).toHaveBeenCalled();
+    // plugins has a single preset — it is its own canonical, nothing to link
+    expect(choices!.plugins.enabled).toBe(false);
+    expect(searchMock).toHaveBeenCalled();
   });
 
   it("offers scaffolding when no instruction file exists at all", async () => {
@@ -62,6 +69,15 @@ describe("runWizard (defaults accepted)", () => {
 
   it("respects a declined concern", async () => {
     confirmMock.mockImplementationOnce(async () => false);
+    const root = await makeProject();
+    await writeRel(root, "AGENTS.md", "# agents\n");
+    const d = await detect(root);
+    const choices = await runWizard(d);
+    expect(choices!.instructions.enabled).toBe(false);
+  });
+
+  it("disables a concern when no targets are selected", async () => {
+    searchMock.mockImplementationOnce(async () => []);
     const root = await makeProject();
     await writeRel(root, "AGENTS.md", "# agents\n");
     const d = await detect(root);

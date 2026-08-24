@@ -1,4 +1,5 @@
 import * as p from "@clack/prompts";
+import pc from "picocolors";
 
 import { describeState, type Detection } from "../detect.js";
 import {
@@ -9,6 +10,7 @@ import {
   type ConcernKind,
 } from "../presets.js";
 import type { Choices } from "../engine/planner.js";
+import { cancelSymbol, searchMultiselect } from "./search-multiselect.js";
 
 export function isInteractive(): boolean {
   return Boolean(process.stdout.isTTY && process.stdin.isTTY && !process.env.CI);
@@ -19,6 +21,15 @@ function checkCancel(value: unknown): void {
     p.cancel("Cancelled.");
     process.exit(0);
   }
+}
+
+function stateHint(detection: Detection, concern: ConcernKind, presetId: string): string {
+  const preset = PRESETS.find((x) => x.id === presetId);
+  const state = detection.concerns[concern].states.get(presetId);
+  let hint = describeState(state);
+  if (hint === "exists") hint = "exists (will be replaced by alias)";
+  else if (hint.startsWith("linked")) hint = "already linked";
+  return `${preset?.path ?? ""} · ${hint}`;
 }
 
 async function pickCanonical(
@@ -70,39 +81,45 @@ async function pickTargets(
   concern: ConcernKind,
   canonicalId: string | null,
 ): Promise<string[]> {
-  const options = presetsByConcern(concern)
+  const items = presetsByConcern(concern)
     .filter((preset) => preset.id !== canonicalId)
-    .map((preset) => {
-      const state = detection.concerns[concern].states.get(preset.id);
-      let hint = describeState(state);
-      if (hint === "exists") hint = "exists (will be replaced by alias)";
-      else if (hint.startsWith("linked")) hint = "already linked";
-      return { value: preset.id, label: `${preset.tool}`, hint: `${preset.path} · ${hint}` };
-    });
+    .map((preset) => ({
+      value: preset.id,
+      label: `${preset.tool}`,
+      hint: stateHint(detection, concern, preset.id),
+    }));
 
-  const selected = await p.multiselect({
-    message: "Target agents? (enter accepts everything)",
-    options,
-    initialValues: options.map((o) => o.value),
-    required: false,
+  if (items.length === 0) return [];
+  const selected = await searchMultiselect({
+    message: `Target agents for ${CONCERN_LABELS[concern].toLowerCase()}?`,
+    items,
+    initialSelected: items.map((o) => o.value),
+    selectAll: true,
+    itemNoun: "agents",
   });
-  checkCancel(selected);
-  const values = (selected as string[]) ?? [];
-  return values.length === 0 ? options.map((o) => o.value as string) : values;
+  if (selected === cancelSymbol || p.isCancel(selected)) {
+    p.cancel("Cancelled.");
+    process.exit(0);
+  }
+  return selected as string[];
 }
 
 export async function runWizard(detection: Detection): Promise<Choices | null> {
-  p.intro("agents-aliases — one source of truth for every coding agent");
+  p.intro(pc.bgCyan(pc.black(" agents-aliases ")));
 
   const scanLines: string[] = [];
   for (const concern of CONCERN_ORDER) {
     const scan = detection.concerns[concern];
     const entries = [...scan.states.values()];
     if (entries.every((s) => s.type === "missing")) continue;
-    scanLines.push(`${CONCERN_LABELS[concern]}:`);
+    scanLines.push(`${pc.bold(CONCERN_LABELS[concern])}:`);
     for (const s of entries) {
       const icon =
-        s.type === "broken-symlink" ? "!" : s.type === "missing" ? "-" : "+";
+        s.type === "broken-symlink"
+          ? pc.red("!")
+          : s.type === "missing"
+            ? pc.dim("-")
+            : pc.green("+");
       scanLines.push(`  ${icon} ${s.relPath.padEnd(34)} ${describeState(s)}`);
     }
   }
@@ -136,6 +153,10 @@ export async function runWizard(detection: Detection): Promise<Choices | null> {
     }
 
     const targetIds = await pickTargets(detection, concern, canonicalId);
+    if (targetIds.length === 0) {
+      choices[concern] = { enabled: false, canonicalId: null, targetIds: [] };
+      continue;
+    }
     choices[concern] = { enabled: true, canonicalId, targetIds };
   }
 
@@ -157,6 +178,6 @@ export async function runWizard(detection: Detection): Promise<Choices | null> {
       : { enabled: false, canonicalId: null, targetIds: [] };
   }
 
-  p.outro("Plan ready.");
+  p.outro(pc.dim("Review the plan to confirm."));
   return choices;
 }
