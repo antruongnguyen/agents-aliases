@@ -40,11 +40,14 @@ describe("presets", () => {
     expect(set.has("claude")).toBe(true);
     expect(set.has("skills-claude")).toBe(true);
     expect(set.has("plugins-claude")).toBe(true);
+    expect(set.has("rules-claude")).toBe(true);
     expect(set.has("rules-cursor")).toBe(true);
     expect(set.has("codex")).toBe(false);
   });
 
   it("maps rule file names per adapter", () => {
+    expect(targetFileName("review.md", "claude")).toBe("review.md");
+    expect(targetFileName("review.mdc", "claude")).toBe("review.md");
     expect(targetFileName("review.md", "mdc")).toBe("review.mdc");
     expect(targetFileName("review.mdc", "copilot-instructions")).toBe("review.instructions.md");
     expect(targetFileName("review.instructions.md", "windsurf")).toBe("review.md");

@@ -9,6 +9,33 @@ Complete behavior reference for `agents-aliases`.
 - **Alias** — a relative symlink at a tool's expected path, pointing at the canonical.
 - **Adapter** — a generated rule file: canonical body + tool-specific frontmatter + provenance marker.
 
+## Alias matrix
+
+Which files exist per agent and concern, and how they are wired:
+
+| Agent | Instructions | Skills | Rules | Plugins |
+| --- | --- | --- | --- | --- |
+| **Codex** | `AGENTS.md` — canonical | `.codex/skills` → link | — | — |
+| **Claude Code** | `CLAUDE.md` → link | `.claude/skills` → link | `.claude/rules/<name>.md` — adapter · preferred canonical | `.claude/plugins` — canonical |
+| **Gemini CLI** | `GEMINI.md` → link | — | — | — |
+| **GitHub Copilot** | `.github/copilot-instructions.md` → link | — | `.github/instructions/<name>.instructions.md` — adapter | — |
+| **Cursor** | reads `AGENTS.md` (no extra file) | — | `.cursor/rules/<name>.mdc` — adapter | — |
+| **Windsurf** | reads `AGENTS.md` (no extra file) | — | `.windsurf/rules/<name>.md` — adapter | — |
+| **OpenCode** | reads `AGENTS.md` (no extra file) | `.opencode/skills` → link | — | — |
+
+\* Codex, Cursor, Windsurf, Zed, Jules and the Copilot coding agent read `AGENTS.md` natively; only Claude Code and Gemini CLI need their own instruction files.
+
+Legend: **canonical** = real file you edit · `→ link` = relative symlink to canonical · **adapter** = generated (canonical body + tool frontmatter + marker) · `—` = not wired by v1.
+
+Default wiring with "select all":
+
+| Concern | Canonical (you edit) | Aliases / adapters created |
+| --- | --- | --- |
+| Instructions | `AGENTS.md` | `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` (3 symlinks) |
+| Skills | `.agents/skills` | `.claude/skills`, `.codex/skills`, `.opencode/skills` (3 dir symlinks) |
+| Rules | first existing of `.claude/rules` › `.cursor/rules` › `.windsurf/rules` › `.github/instructions` | adapters in the other three dirs |
+| Plugins | `.claude/plugins` | custom dir targets |
+
 ## Detection matrix
 
 `agents-aliases` scans these paths relative to the working directory (order = canonical preference):
@@ -23,6 +50,7 @@ Complete behavior reference for `agents-aliases`.
 | skills | `skills-claude` | `.claude/skills` | Claude Code | dir symlink |
 | skills | `skills-codex` | `.codex/skills` | Codex | dir symlink |
 | skills | `skills-opencode` | `.opencode/skills` | OpenCode | dir symlink |
+| rules | `rules-claude` | `.claude/rules` | Claude Code | adapter `.md` |
 | rules | `rules-cursor` | `.cursor/rules` | Cursor | adapter `.mdc` |
 | rules | `rules-windsurf` | `.windsurf/rules` | Windsurf | adapter `.md` |
 | rules | `rules-copilot` | `.github/instructions` | Copilot scoped | adapter `.instructions.md` |
@@ -91,11 +119,12 @@ For each canonical rule file `<base>.md|.mdc|.instructions.md`, each target tool
 
 | Tool | Output name | Frontmatter emitted |
 | --- | --- | --- |
+| Claude Code | `<base>.md` | `paths: ["<glob>"]` when a glob scope is known (from `paths`/`globs`/`applyTo`); plain markdown otherwise |
 | Cursor | `<base>.mdc` | `description`, `globs` (if known), `alwaysApply` (true when no globs known) |
 | Windsurf | `<base>.md` | `trigger: glob` + `glob:` when globs known, else `trigger: always_on`; plus `description` |
-| Copilot scoped | `<base>.instructions.md` | `applyTo` (from `applyTo`/`globs`, default `"**"`), optional `description` |
+| Copilot scoped | `<base>.instructions.md` | `applyTo` (from `applyTo`/`globs`/`paths`, default `"**"`), optional `description` |
 
-Carry-over: recognized keys in the canonical file's own frontmatter (`description`, `globs`, `applyTo`, `alwaysApply`, `trigger`) feed the mapping; unknown keys are dropped. `description` falls back to the first `# heading`, then the file base name.
+Carry-over: recognized keys in the canonical file's own frontmatter (`description`, `globs`, `applyTo`, `alwaysApply`, `trigger`, `paths`) feed the mapping; unknown keys are dropped. `description` falls back to the first `# heading`, then the file base name.
 
 Every adapter starts (after frontmatter) with the marker:
 

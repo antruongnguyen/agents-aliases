@@ -75,10 +75,11 @@ Design decisions recorded as short ADRs. Status: all **accepted** (v0.1.0).
 
 **Context.** With multiple real copies of a concern, one must become canonical. Options: ask always, or encode a sensible default order.
 
-**Decision.** Preset array order defines preference: instructions prefer `AGENTS.md` (the cross-tool standard, read by Codex/Cursor/Copilot-agent/Windsurf/Zed/Jules), skills prefer `.agents/skills` (the emerging cross-client convention), rules prefer `.cursor/rules`. The picker only appears when ≥ 2 real sources exist; non-interactive mode takes the first candidate silently.
+**Decision.** Preset array order defines preference: instructions prefer `AGENTS.md` (the cross-tool standard, read by Codex/Cursor/Copilot-agent/Windsurf/Zed/Jules), skills prefer `.agents/skills` (the emerging cross-client convention), rules prefer `.claude/rules` (plain markdown with optional `paths:` frontmatter — a lossless adapter source, and Claude Code officially resolves symlinks inside it), then Cursor, Windsurf, Copilot-scoped. The picker only appears when ≥ 2 real sources exist; non-interactive mode takes the first candidate silently.
 
 **Consequences.**
 - ✅ Sensible defaults align with ecosystem convergence; if Claude Code ever adopts AGENTS.md, dropping one spoke suffices.
+- ✅ A plain-markdown canonical means adapters never inherit tool-specific keys from the source format.
 - ❌ Users who want CLAUDE.md as canonical must answer one prompt (or reorder presets via PR).
 
 ---

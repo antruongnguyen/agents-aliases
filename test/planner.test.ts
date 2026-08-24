@@ -156,12 +156,13 @@ describe("plan: rules", () => {
       .map((a) => (a.kind === "generate" ? a.targetPath : ""))
       .sort();
     expect(targets).toEqual([
+      ".claude/rules/review.md",
       ".github/instructions/review.instructions.md",
       ".windsurf/rules/review.md",
     ]);
 
     const summary = await applyPlan(d, p, false);
-    expect(summary.generated).toBe(2);
+    expect(summary.generated).toBe(3);
   });
 
   it("regenerates drifted generated files and counts fresh ones as noop", async () => {

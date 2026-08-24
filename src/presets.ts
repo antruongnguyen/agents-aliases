@@ -1,6 +1,6 @@
 export type ConcernKind = "instructions" | "skills" | "rules" | "plugins";
 
-export type AdapterFormat = "mdc" | "copilot-instructions" | "windsurf";
+export type AdapterFormat = "claude" | "mdc" | "copilot-instructions" | "windsurf";
 
 export interface AgentPreset {
   id: string;
@@ -83,6 +83,14 @@ export const PRESETS: AgentPreset[] = [
     kind: "dir",
   },
   {
+    id: "rules-claude",
+    tool: "Claude Code",
+    concern: "rules",
+    path: ".claude/rules",
+    kind: "dir",
+    adapter: "claude",
+  },
+  {
     id: "rules-cursor",
     tool: "Cursor",
     concern: "rules",
@@ -128,7 +136,7 @@ export function findPresetByPath(posixPath: string): AgentPreset | undefined {
 }
 
 const AGENT_SHORTCUTS: Record<string, string[]> = {
-  claude: ["claude", "skills-claude", "plugins-claude"],
+  claude: ["claude", "skills-claude", "plugins-claude", "rules-claude"],
   codex: ["codex", "skills-codex"],
   gemini: ["gemini"],
   copilot: ["copilot", "rules-copilot"],

@@ -37,7 +37,7 @@ export function splitFrontmatter(content: string): FrontmatterSplit {
 }
 
 function quoteYaml(value: string): string {
-  if (/^[A-Za-z0-9_*.,{}/\s-]+$/.test(value)) {
+  if (/^[A-Za-z0-9_*.,{}/[\]"\s-]+$/.test(value)) {
     return value;
   }
   return JSON.stringify(value);
@@ -84,6 +84,8 @@ export function stripRuleExtension(fileName: string): string {
 export function targetFileName(canonicalFileName: string, format: AdapterFormat): string {
   const base = stripRuleExtension(canonicalFileName);
   switch (format) {
+    case "claude":
+      return `${base}.md`;
     case "mdc":
       return `${base}.mdc`;
     case "copilot-instructions":
@@ -105,10 +107,18 @@ export function generateAdapter(input: GenerateAdapterInput): string {
 
   const description =
     frontmatter.description ?? firstHeading(body) ?? path.basename(stripRuleExtension(sourceRelPath));
-  const globs = frontmatter.globs ?? frontmatter.applyTo;
+  const globs = frontmatter.globs ?? frontmatter.applyTo ?? frontmatter.paths;
 
   let fm: Record<string, string>;
   switch (format) {
+    case "claude": {
+      fm = {};
+      const paths = frontmatter.paths ?? globs;
+      if (paths) {
+        fm.paths = paths.startsWith("[") ? paths : `["${paths}"]`;
+      }
+      break;
+    }
     case "mdc": {
       fm = { description };
       const alwaysApply = frontmatter.alwaysApply ?? (globs ? "false" : "true");
