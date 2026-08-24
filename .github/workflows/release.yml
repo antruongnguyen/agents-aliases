@@ -3,11 +3,8 @@
 #   git tag v0.1.1 && git push origin v0.1.1
 #
 # Required secret: NPM_TOKEN (an npm automation/granular token).
-#
-# npm provenance note: once this repository has its public GitHub remote,
-# add a matching "repository" field to package.json and append
-# `--provenance` to the pnpm publish step below — the id-token permission
-# is already granted.
+# npm provenance is enabled: package.json#repository matches this remote
+# and the workflow grants id-token: write.
 
 name: Release
 
@@ -45,7 +42,7 @@ jobs:
         run: pnpm build
 
       - name: Publish to npm
-        run: pnpm publish --access public --no-git-checks
+        run: pnpm publish --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

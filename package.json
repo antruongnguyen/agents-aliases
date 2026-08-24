@@ -1,9 +1,18 @@
 {
   "name": "agents-aliases",
   "version": "0.1.0",
-  "description": "Zero-config CLI that aliases CLAUDE.md, AGENTS.md, Copilot instructions, skills, rules and plugins across AI coding agents — one source of truth per project.",
+  "description": "Alias CLAUDE.md, AGENTS.md, Copilot instructions, skills, rules & plugins across AI coding agents. One source of truth, zero config.",
   "type": "module",
   "license": "MIT",
+  "author": "An Nguyen <annguyen.apps@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antruongnguyen/agents-aliases.git"
+  },
+  "homepage": "https://github.com/antruongnguyen/agents-aliases#readme",
+  "bugs": {
+    "url": "https://github.com/antruongnguyen/agents-aliases/issues"
+  },
   "packageManager": "pnpm@9.15.9",
   "bin": {
     "agents-aliases": "./dist/cli.js"
@@ -15,19 +24,28 @@
     "node": ">=20"
   },
   "keywords": [
+    "ai",
     "agents",
+    "agent-skills",
+    "agents-md",
+    "alias",
+    "aliases",
     "claude-code",
+    "claude-md",
+    "cli",
     "codex",
     "copilot",
-    "cursor",
-    "windsurf",
-    "gemini",
+    "copilot-instructions",
+    "cursor-rules",
+    "developer-tools",
+    "drift-detection",
+    "gemini-cli",
     "opencode",
-    "agents-md",
-    "claude-md",
+    "rules",
+    "single-source-of-truth",
+    "skills",
     "symlink",
-    "ai",
-    "cli"
+    "windsurf"
   ],
   "scripts": {
     "build": "tsdown",

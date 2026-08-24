@@ -126,5 +126,5 @@ Interactive-only code paths are kept minimal so coverage doesn't depend on a TTY
 - `package.json` exposes `bin.agents-aliases`; `files: ["dist"]` keeps the tarball at ~13 kB packed; the `packageManager` field pins pnpm for CI and enables setup-node's automatic cache.
 - Two GitHub Actions workflows:
   - **CI** (`ci.yml`, push/PR): a `verify` job (lint → typecheck → build → `npm pack --dry-run`) plus a `test` matrix over Ubuntu/macOS/Windows × Node 20/24.
-  - **Release** (`release.yml`, tag `v*`): verify → build → `pnpm publish --access public` (using the `NPM_TOKEN` secret) → GitHub release with the packed tarball attached and generated notes.
+  - **Release** (`release.yml`, tag `v*`): verify → build → `pnpm publish --access public --provenance` (using the `NPM_TOKEN` secret; `package.json#repository` matches the remote so npm signs provenance) → GitHub release with the packed tarball attached and generated notes.
 - Uses current action majors: `actions/checkout@v7`, `actions/setup-node@v7`, `pnpm/action-setup@v4`, `softprops/action-gh-release@v2`.
