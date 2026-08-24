@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 
-import * as p from "@clack/prompts";
-
 import { KNOWN_COMMANDS } from "./presets.js";
 import { runInit } from "./commands/init.js";
 import { runStatus } from "./commands/status.js";

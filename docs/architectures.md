@@ -123,5 +123,8 @@ Interactive-only code paths are kept minimal so coverage doesn't depend on a TTY
 ## Build & release
 
 - **tsdown** bundles `src/cli.ts` → single-file ESM `dist/cli.js` (~39 kB) with shebang preserved.
-- `package.json` exposes `bin.agents-aliases`; `files: ["dist"]` keeps the tarball at ~13 kB packed.
-- GitHub Actions matrix (Ubuntu/macOS/Windows) runs lint → typecheck → test → build → `npm pack --dry-run`; a tag-triggered job publishes via pnpm with npm provenance enabled (`id-token: write`).
+- `package.json` exposes `bin.agents-aliases`; `files: ["dist"]` keeps the tarball at ~13 kB packed; the `packageManager` field pins pnpm for CI and enables setup-node's automatic cache.
+- Two GitHub Actions workflows:
+  - **CI** (`ci.yml`, push/PR): a `verify` job (lint → typecheck → build → `npm pack --dry-run`) plus a `test` matrix over Ubuntu/macOS/Windows × Node 20/24.
+  - **Release** (`release.yml`, tag `v*`): verify → build → `pnpm publish --access public` (using the `NPM_TOKEN` secret) → GitHub release with the packed tarball attached and generated notes.
+- Uses current action majors: `actions/checkout@v7`, `actions/setup-node@v7`, `pnpm/action-setup@v4`, `softprops/action-gh-release@v2`.

@@ -134,10 +134,19 @@ Exit codes: `0` clean · `1` problems found · `2` usage error.
 ```bash
 pnpm install
 pnpm test        # build + vitest (unit, planner, wizard, CLI smoke)
+pnpm verify      # lint + typecheck + test + build (same gate as CI/release)
 pnpm lint        # oxlint
 pnpm typecheck   # tsc --noEmit
 pnpm build       # tsdown -> dist/cli.js
 ```
+
+Releasing: push a version tag — `.github/workflows/release.yml` verifies, builds, publishes to npm and attaches the tarball to a GitHub release:
+
+```bash
+git tag v0.1.1 && git push origin v0.1.1
+```
+
+Prerequisite: set the `NPM_TOKEN` secret in the GitHub repository.
 
 Project layout:
 

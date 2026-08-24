@@ -4,6 +4,7 @@
   "description": "Zero-config CLI that aliases CLAUDE.md, AGENTS.md, Copilot instructions, skills, rules and plugins across AI coding agents — one source of truth per project.",
   "type": "module",
   "license": "MIT",
+  "packageManager": "pnpm@9.15.9",
   "bin": {
     "agents-aliases": "./dist/cli.js"
   },
@@ -36,6 +37,7 @@
     "lint": "oxlint src test",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "prepublishOnly": "pnpm build && pnpm test && pnpm typecheck && pnpm lint"
   },
   "dependencies": {
