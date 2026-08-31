@@ -40,6 +40,7 @@ Default wiring with "select all":
 
 `agents-aliases` scans these paths relative to the working directory (order = canonical preference):
 
+<!-- BEGIN GENERATED: detection-matrix (derived from PRESETS; verified by test/docs.test.ts — paste the block it prints on failure) -->
 | Concern | Preset id | Path | Tool | Wiring |
 | --- | --- | --- | --- | --- |
 | instructions | `codex` | `AGENTS.md` | Codex / AGENTS.md standard | symlink |
@@ -53,8 +54,9 @@ Default wiring with "select all":
 | rules | `rules-claude` | `.claude/rules` | Claude Code | adapter `.md` |
 | rules | `rules-cursor` | `.cursor/rules` | Cursor | adapter `.mdc` |
 | rules | `rules-windsurf` | `.windsurf/rules` | Windsurf | adapter `.md` |
-| rules | `rules-copilot` | `.github/instructions` | Copilot scoped | adapter `.instructions.md` |
+| rules | `rules-copilot` | `.github/instructions` | GitHub Copilot (scoped) | adapter `.instructions.md` |
 | plugins | `plugins-claude` | `.claude/plugins` | Claude Code | dir symlink |
+<!-- END GENERATED: detection-matrix -->
 
 Each path is classified as: real file/dir (canonical candidate), working symlink, broken symlink, or missing. Real instruction files are content-hashed; real skill directories are tree-hashed (recursive, sorted, symlink-aware) to detect identical vs diverged copies.
 

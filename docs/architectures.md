@@ -107,12 +107,13 @@ Because gates live in `plan()`, every consumer (wizard preview, `--yes`, dry-run
 
 ## Testing strategy
 
-The test matrix spans 10 files:
+The test matrix spans 11 files:
 
 | Layer | Approach |
 | --- | --- |
 | `presets`, `rules`, `symlink` | Unit tests incl. link-target math (`root→root`, `nested→root`, `nested→nested`) |
 | `summary`, `search-multiselect` | UI unit tests: render output and search/multi-select filtering behavior |
+| `docs` | Regenerates the `features.md` detection matrix from `PRESETS` and asserts the on-disk marked region matches — docs can't drift from the preset registry |
 | `detect` | Fixture trees in `os.tmpdir()`: real/symlink/broken/generated-marker classification, hash equality |
 | `planner` | Scenario matrix: clean adopt, identical/differing duplicates × git/no-git × clean/dirty, noop vs repair, rules generation/naming/drift/foreign-block, dry-run immutability |
 | `choices` | Default-choice semantics incl. `--agents` shortcut filtering and scaffold fallback |
