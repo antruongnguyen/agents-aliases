@@ -76,7 +76,7 @@ Cancelling any prompt exits cleanly without changes.
 
 ### `init` (default)
 
-Described above. Non-interactive when stdout/stdin is not a TTY, `CI` is set, or `--yes` is passed — defaults are applied: wire every detected concern, canonical = highest-preference source, targets = every other preset of the concern.
+Described above. Runs non-interactively when stdout/stdin is not a TTY, `CI` is set, or `--yes` is passed — defaults are applied: wire every detected concern, canonical = highest-preference source, targets = every other preset of the concern. (`--all` widens targets but does not by itself skip prompts.)
 
 ### `status`
 
@@ -110,7 +110,7 @@ Outputs `check: all agent aliases are wired correctly.` and exit 0 otherwise. Ne
 | --- | --- |
 | `-y, --yes` | Skip all prompts; accept defaults |
 | `-a, --agents <csv>` | Restrict targets. Accepts preset ids (`rules-cursor`) or shortcuts: `claude`→claude+skills-claude+plugins-claude+rules-claude, `codex`→codex+skills-codex, `copilot`→copilot+rules-copilot, `cursor`, `windsurf`, `gemini`, `opencode`. Unknown ids abort with usage error (exit 2) |
-| `--all` | Explicitly target every supported agent (same as defaults) |
+| `--all` | Widen targets to every supported agent, overriding a narrower `--agents` filter. On its own (no `--agents`) it is a no-op, since the default already targets all. Does **not** skip prompts — combine with `--yes` for non-interactive runs |
 | `--dry-run` | Preview only; filesystem untouched |
 | `-h, --help` | Show help |
 | `-V, --version` | Show version |

@@ -102,7 +102,7 @@ See [docs/features.md](docs/features.md) for the complete behavior reference and
 ```
 -y, --yes      Skip prompts: wire everything detected to every supported agent
 -a, --agents   Filter targets: claude,codex,gemini,copilot,cursor,windsurf,opencode
-    --all      Same as accepting defaults
+    --all      Widen targets to all agents (overrides --agents; no-op alone)
     --dry-run  Preview without touching anything
 -h, --help     Help        -V, --version   Version
 ```
