@@ -65,7 +65,7 @@ Design decisions recorded as short ADRs. Status: all **accepted** (v0.1.0).
 **Decision.** One runtime dependency (`@clack/prompts`, ~small, ESM). All other functionality uses Node built-ins (`node:fs`, `node:path`, `node:util#parseArgs`, `node:crypto`, `node:child_process`).
 
 **Consequences.**
-- ✅ Fast installs, small tarball (~13 kB packed).
+- ✅ Fast installs, small tarball (~21 kB packed).
 - ✅ Prompts isolated in `ui/prompts.ts`; wizard logic is testable via mocks (no TTY needed).
 - ❌ TUI behavior under exotic terminals depends on clack; accepted trade-off vs maintaining raw-mode code.
 
@@ -122,7 +122,7 @@ Design decisions recorded as short ADRs. Status: all **accepted** (v0.1.0).
 
 ## ADR-010 — TypeScript ESM on Node ≥ 20, bundled to a single file
 
-**Decision.** Strict TypeScript compiled by tsdown to one ESM bundle (~39 kB) targeting Node ≥ 20 (maintenance LTS floor at time of writing). Tests via vitest; lint via oxlint; formatting via prettier.
+**Decision.** Strict TypeScript compiled by tsdown to one ESM bundle (~62 kB) targeting Node ≥ 20 (maintenance LTS floor at time of writing). Tests via vitest; lint via oxlint; formatting via prettier.
 
 **Consequences.**
 - ✅ Single-artifact bin keeps `npx` cold-start fast and the published tree trivial.

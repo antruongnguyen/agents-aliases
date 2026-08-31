@@ -107,11 +107,12 @@ Because gates live in `plan()`, every consumer (wizard preview, `--yes`, dry-run
 
 ## Testing strategy
 
-58 tests across 8 files:
+The test matrix spans 10 files:
 
 | Layer | Approach |
 | --- | --- |
 | `presets`, `rules`, `symlink` | Unit tests incl. link-target math (`root→root`, `nested→root`, `nested→nested`) |
+| `summary`, `search-multiselect` | UI unit tests: render output and search/multi-select filtering behavior |
 | `detect` | Fixture trees in `os.tmpdir()`: real/symlink/broken/generated-marker classification, hash equality |
 | `planner` | Scenario matrix: clean adopt, identical/differing duplicates × git/no-git × clean/dirty, noop vs repair, rules generation/naming/drift/foreign-block, dry-run immutability |
 | `choices` | Default-choice semantics incl. `--agents` shortcut filtering and scaffold fallback |
@@ -122,9 +123,9 @@ Interactive-only code paths are kept minimal so coverage doesn't depend on a TTY
 
 ## Build & release
 
-- **tsdown** bundles `src/cli.ts` → single-file ESM `dist/cli.js` (~39 kB) with shebang preserved.
-- `package.json` exposes `bin.agents-aliases`; `files: ["dist"]` keeps the tarball at ~13 kB packed; the `packageManager` field pins pnpm for CI and enables setup-node's automatic cache.
+- **tsdown** bundles `src/cli.ts` → single-file ESM `dist/cli.js` (~62 kB, ~17 kB gzipped) with shebang preserved.
+- `package.json` exposes `bin.agents-aliases`; `files: ["dist"]` keeps the tarball at ~21 kB packed; the `packageManager` field pins pnpm for CI and enables setup-node's automatic cache.
 - Two GitHub Actions workflows:
   - **CI** (`ci.yml`, push/PR): a `verify` job (lint → typecheck → build → `npm pack --dry-run`) plus a `test` matrix over Ubuntu/macOS/Windows × Node 20/24.
-  - **Release** (`release.yml`, tag `v*`): verify → build → `pnpm publish --access public --provenance` (using the `NPM_TOKEN` secret; `package.json#repository` matches the remote so npm signs provenance) → GitHub release with the packed tarball attached and generated notes.
+  - **Release** (`release.yml`, tag `v*`): verify → build → `pnpm publish --access public --provenance` via **npm trusted publishing (OIDC)** — no `NPM_TOKEN` secret; `id-token: write` plus a Node ≥ 24 runner (npm ≥ 11.5) performs the token exchange, and `package.json#repository` matching the remote lets npm sign provenance → GitHub release with the packed tarball attached and generated notes.
 - Uses current action majors: `actions/checkout@v7`, `actions/setup-node@v7`, `pnpm/action-setup@v4`, `softprops/action-gh-release@v2`.

@@ -146,7 +146,7 @@ Releasing: push a version tag — `.github/workflows/release.yml` verifies, buil
 git tag v0.1.1 && git push origin v0.1.1
 ```
 
-Prerequisite: set the `NPM_TOKEN` secret in the GitHub repository.
+Prerequisite: a one-time **npm trusted publisher (OIDC)** configuration for this package, pointing at `release.yml`. No `NPM_TOKEN` secret is needed — provenance is signed automatically.
 
 Project layout:
 
