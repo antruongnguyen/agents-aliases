@@ -25,7 +25,7 @@ Which files exist per agent and concern, and how they are wired:
 
 \* Codex, Cursor, Windsurf, Zed, Jules and the Copilot coding agent read `AGENTS.md` natively; only Claude Code and Gemini CLI need their own instruction files.
 
-Legend: **canonical** = real file you edit · `→ link` = relative symlink to canonical · **adapter** = generated (canonical body + tool frontmatter + marker) · `—` = not wired by v1.
+Legend: **canonical** = real file you edit · `→ link` = relative symlink to canonical · **adapter** = generated (canonical body + tool frontmatter + marker) · `—` = not currently wired.
 
 Default wiring with "select all":
 
@@ -109,9 +109,11 @@ Outputs `check: all agent aliases are wired correctly.` and exit 0 otherwise. Ne
 | Flag | Effect |
 | --- | --- |
 | `-y, --yes` | Skip all prompts; accept defaults |
-| `-a, --agents <csv>` | Restrict targets. Accepts preset ids (`rules-cursor`) or shortcuts: `claude`→claude+skills-claude+plugins-claude, `codex`→codex+skills-codex, `copilot`→copilot+rules-copilot, `cursor`, `windsurf`, `gemini`, `opencode`. Unknown ids abort with usage error (exit 2) |
+| `-a, --agents <csv>` | Restrict targets. Accepts preset ids (`rules-cursor`) or shortcuts: `claude`→claude+skills-claude+plugins-claude+rules-claude, `codex`→codex+skills-codex, `copilot`→copilot+rules-copilot, `cursor`, `windsurf`, `gemini`, `opencode`. Unknown ids abort with usage error (exit 2) |
 | `--all` | Explicitly target every supported agent (same as defaults) |
 | `--dry-run` | Preview only; filesystem untouched |
+| `-h, --help` | Show help |
+| `-V, --version` | Show version |
 
 ## Rule adapters
 
