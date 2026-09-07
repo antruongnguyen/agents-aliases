@@ -22,7 +22,7 @@ Commands:
 
 Options:
   -y, --yes       Skip prompts, use defaults (alias everything detected to every supported agent)
-  -a, --agents    Comma-separated agent filter, e.g. claude,codex,cursor,windsurf,copilot,gemini,opencode
+  -a, --agents    Comma-separated agent filter, e.g. claude,codex,cursor,windsurf,copilot,gemini,opencode,cline
       --all       Alias every supported agent (same as accepting defaults)
       --dry-run   Preview the plan without touching the filesystem
   -h, --help      Show this help

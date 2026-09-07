@@ -42,6 +42,7 @@ What gets wired, per agent and concern:
 | **Cursor** | reads `AGENTS.md` (no extra file) | — | `.cursor/rules/<name>.mdc` — adapter | — |
 | **Windsurf** | reads `AGENTS.md` (no extra file) | — | `.windsurf/rules/<name>.md` — adapter | — |
 | **OpenCode** | reads `AGENTS.md` (no extra file) | `.opencode/skills` → link | — | — |
+| **Cline** | — | `.cline/skills` → link | `.clinerules/<name>.md` — adapter | — |
 
 \* Codex, Cursor, Windsurf, Zed, Jules and the Copilot coding agent all read `AGENTS.md` natively — the canonical *is* their alias; only Claude Code and Gemini CLI need extra files.
 
@@ -52,15 +53,15 @@ Legend:
 | **canonical** | The one real file/dir you edit (default per concern below) |
 | `→ link` | Relative symlink created at this path, pointing at the canonical |
 | **adapter** | Generated file: canonical body + that tool's required frontmatter, marker-stamped |
-| — | Not wired by v1 |
+| — | Not currently wired |
 
 Default wiring created by "select all":
 
 | Concern | Canonical (you edit) | Aliases / adapters created |
 | --- | --- | --- |
 | Instructions | `AGENTS.md` | `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` (3 symlinks) |
-| Skills | `.agents/skills` | `.claude/skills`, `.codex/skills`, `.opencode/skills` (3 dir symlinks) |
-| Rules | first existing of `.claude/rules` › `.cursor/rules` › `.windsurf/rules` › `.github/instructions` | adapters in the other three dirs |
+| Skills | `.agents/skills` | `.claude/skills`, `.codex/skills`, `.opencode/skills`, `.cline/skills` (4 dir symlinks) |
+| Rules | first existing of `.claude/rules` › `.cursor/rules` › `.windsurf/rules` › `.github/instructions` › `.clinerules` | adapters in the other four dirs |
 | Plugins | `.claude/plugins` | custom dir targets |
 
 Resulting project:
@@ -74,10 +75,12 @@ GEMINI.md              -> AGENTS.md
 .claude/skills         -> ../.agents/skills
 .codex/skills          -> ../.agents/skills
 .opencode/skills       -> ../.agents/skills
+.cline/skills          -> ../.agents/skills
 .claude/rules/review.md                    # generated adapter (plain md, paths frontmatter)
 .cursor/rules/review.mdc                   # generated adapter w/ MDC frontmatter
 .windsurf/rules/review.md                  # generated adapter
 .github/instructions/review.instructions.md# generated adapter
+.clinerules/review.md                      # generated adapter (plain md, paths frontmatter)
 ```
 
 ## How it works
@@ -101,7 +104,7 @@ See [docs/features.md](docs/features.md) for the complete behavior reference and
 
 ```
 -y, --yes      Skip prompts: wire everything detected to every supported agent
--a, --agents   Filter targets: claude,codex,gemini,copilot,cursor,windsurf,opencode
+-a, --agents   Filter targets: claude,codex,gemini,copilot,cursor,windsurf,opencode,cline
     --all      Widen targets to all agents (overrides --agents; no-op alone)
     --dry-run  Preview without touching anything
 -h, --help     Help        -V, --version   Version

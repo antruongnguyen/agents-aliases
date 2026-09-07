@@ -83,6 +83,13 @@ export const PRESETS: AgentPreset[] = [
     kind: "dir",
   },
   {
+    id: "skills-cline",
+    tool: "Cline",
+    concern: "skills",
+    path: ".cline/skills",
+    kind: "dir",
+  },
+  {
     id: "rules-claude",
     tool: "Claude Code",
     concern: "rules",
@@ -115,6 +122,14 @@ export const PRESETS: AgentPreset[] = [
     adapter: "copilot-instructions",
   },
   {
+    id: "rules-cline",
+    tool: "Cline",
+    concern: "rules",
+    path: ".clinerules",
+    kind: "dir",
+    adapter: "claude",
+  },
+  {
     id: "plugins-claude",
     tool: "Claude Code",
     concern: "plugins",
@@ -143,6 +158,7 @@ const AGENT_SHORTCUTS: Record<string, string[]> = {
   cursor: ["rules-cursor"],
   windsurf: ["rules-windsurf"],
   opencode: ["skills-opencode"],
+  cline: ["skills-cline", "rules-cline"],
 };
 
 export function knownAgentTokens(): Set<string> {

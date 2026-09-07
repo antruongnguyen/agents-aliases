@@ -22,18 +22,23 @@ Which files exist per agent and concern, and how they are wired:
 | **Cursor** | reads `AGENTS.md` (no extra file) | — | `.cursor/rules/<name>.mdc` — adapter | — |
 | **Windsurf** | reads `AGENTS.md` (no extra file) | — | `.windsurf/rules/<name>.md` — adapter | — |
 | **OpenCode** | reads `AGENTS.md` (no extra file) | `.opencode/skills` → link | — | — |
+| **Cline** | — | `.cline/skills` → link | `.clinerules/<name>.md` — adapter | — |
 
-\* Codex, Cursor, Windsurf, Zed, Jules and the Copilot coding agent read `AGENTS.md` natively; only Claude Code and Gemini CLI need their own instruction files.
+\* Codex, Cursor, Windsurf, Zed, Jules and the Copilot coding agent read `AGENTS.md` natively; only Claude Code and Gemini CLI need their own instruction files. Cline reads its own `.clinerules`/UI guidance and is not wired for instructions here.
 
 Legend: **canonical** = real file you edit · `→ link` = relative symlink to canonical · **adapter** = generated (canonical body + tool frontmatter + marker) · `—` = not currently wired.
+
+### Cross-agent equivalents
+
+Instructions read natively (no extra file needed) by Codex, Cursor, Windsurf, Zed, Jules, and the GitHub Copilot coding agent — all consume `AGENTS.md` at the repo root. Only Claude Code (`CLAUDE.md`) and Gemini CLI (`GEMINI.md`) require a per-tool file, so those are the only instruction symlinks created. Hermes Agent also reads `AGENTS.md`/`CLAUDE.md` natively (via its `.hermes.md → AGENTS.md → CLAUDE.md` chain), so it needs no wiring. Cline is the exception among wired tools: its guidance lives in `.clinerules/` and its skills in `.cline/skills/`, which is why it appears for skills and rules but not instructions.
 
 Default wiring with "select all":
 
 | Concern | Canonical (you edit) | Aliases / adapters created |
 | --- | --- | --- |
 | Instructions | `AGENTS.md` | `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` (3 symlinks) |
-| Skills | `.agents/skills` | `.claude/skills`, `.codex/skills`, `.opencode/skills` (3 dir symlinks) |
-| Rules | first existing of `.claude/rules` › `.cursor/rules` › `.windsurf/rules` › `.github/instructions` | adapters in the other three dirs |
+| Skills | `.agents/skills` | `.claude/skills`, `.codex/skills`, `.opencode/skills`, `.cline/skills` (4 dir symlinks) |
+| Rules | first existing of `.claude/rules` › `.cursor/rules` › `.windsurf/rules` › `.github/instructions` › `.clinerules` | adapters in the other four dirs |
 | Plugins | `.claude/plugins` | custom dir targets |
 
 ## Detection matrix
@@ -51,10 +56,12 @@ Default wiring with "select all":
 | skills | `skills-claude` | `.claude/skills` | Claude Code | dir symlink |
 | skills | `skills-codex` | `.codex/skills` | Codex | dir symlink |
 | skills | `skills-opencode` | `.opencode/skills` | OpenCode | dir symlink |
+| skills | `skills-cline` | `.cline/skills` | Cline | dir symlink |
 | rules | `rules-claude` | `.claude/rules` | Claude Code | adapter `.md` |
 | rules | `rules-cursor` | `.cursor/rules` | Cursor | adapter `.mdc` |
 | rules | `rules-windsurf` | `.windsurf/rules` | Windsurf | adapter `.md` |
 | rules | `rules-copilot` | `.github/instructions` | GitHub Copilot (scoped) | adapter `.instructions.md` |
+| rules | `rules-cline` | `.clinerules` | Cline | adapter `.md` |
 | plugins | `plugins-claude` | `.claude/plugins` | Claude Code | dir symlink |
 <!-- END GENERATED: detection-matrix -->
 
@@ -111,7 +118,7 @@ Outputs `check: all agent aliases are wired correctly.` and exit 0 otherwise. Ne
 | Flag | Effect |
 | --- | --- |
 | `-y, --yes` | Skip all prompts; accept defaults |
-| `-a, --agents <csv>` | Restrict targets. Accepts preset ids (`rules-cursor`) or shortcuts: `claude`→claude+skills-claude+plugins-claude+rules-claude, `codex`→codex+skills-codex, `copilot`→copilot+rules-copilot, `cursor`, `windsurf`, `gemini`, `opencode`. Unknown ids abort with usage error (exit 2) |
+| `-a, --agents <csv>` | Restrict targets. Accepts preset ids (`rules-cursor`) or shortcuts: `claude`→claude+skills-claude+plugins-claude+rules-claude, `codex`→codex+skills-codex, `copilot`→copilot+rules-copilot, `cline`→skills-cline+rules-cline, `cursor`, `windsurf`, `gemini`, `opencode`. Unknown ids abort with usage error (exit 2) |
 | `--all` | Widen targets to every supported agent, overriding a narrower `--agents` filter. On its own (no `--agents`) it is a no-op, since the default already targets all. Does **not** skip prompts — combine with `--yes` for non-interactive runs |
 | `--dry-run` | Preview only; filesystem untouched |
 | `-h, --help` | Show help |

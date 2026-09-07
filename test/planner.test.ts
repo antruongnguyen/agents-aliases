@@ -157,12 +157,13 @@ describe("plan: rules", () => {
       .sort();
     expect(targets).toEqual([
       ".claude/rules/review.md",
+      ".clinerules/review.md",
       ".github/instructions/review.instructions.md",
       ".windsurf/rules/review.md",
     ]);
 
     const summary = await applyPlan(d, p, false);
-    expect(summary.generated).toBe(3);
+    expect(summary.generated).toBe(4);
   });
 
   it("regenerates drifted generated files and counts fresh ones as noop", async () => {
