@@ -82,7 +82,7 @@ describe("renderSetupSummary", () => {
     const out = renderSetupSummary(plan);
     expect(out).toContain("AGENTS.md");
     expect(out).toContain("link:");
-    // vitest stdout is not a TTY, so picocolors is disabled and labels are plain
+    // vitest sets NO_COLOR (see vitest.config.ts), so picocolors emits plain labels
     expect(out).toContain("Claude Code (CLAUDE.md)");
     expect(out).toContain("! something to note");
   });
