@@ -1,0 +1,4 @@
+# Normalize line endings to LF on checkout across all platforms.
+# The rule adapter generator and doc-matrix test compare byte content with \n;
+# CRLF checkouts on Windows would break those comparisons.
+* text=auto eol=lf

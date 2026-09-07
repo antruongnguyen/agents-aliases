@@ -16,7 +16,9 @@ function extractRegion(doc: string): string {
   const start = doc.indexOf(MATRIX_BEGIN);
   const end = doc.indexOf(MATRIX_END);
   if (start === -1 || end === -1) throw new Error("detection-matrix markers not found in features.md");
-  return doc.slice(start + MATRIX_BEGIN.length, end).trim();
+  // Normalize CRLF → LF: on Windows CI the file is checked out with \r\n, but the
+  // generator emits \n. We compare content, not line-ending bytes.
+  return doc.slice(start + MATRIX_BEGIN.length, end).replace(/\r\n/g, "\n").trim();
 }
 
 describe("docs/features.md detection matrix", () => {
