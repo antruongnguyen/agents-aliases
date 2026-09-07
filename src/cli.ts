@@ -7,7 +7,7 @@ import { runStatus } from "./commands/status.js";
 import { runSync } from "./commands/sync.js";
 import { runCheck } from "./commands/check.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const HELP = `agents-aliases — one source of truth for every coding agent
 

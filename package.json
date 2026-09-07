@@ -1,6 +1,6 @@
 {
   "name": "agents-aliases",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Alias CLAUDE.md, AGENTS.md, Copilot instructions, skills, rules & plugins across AI coding agents. One source of truth, zero config.",
   "type": "module",
   "license": "MIT",
