@@ -2,7 +2,7 @@
 
 One source of truth for every AI coding agent — zero config files.
 
-`agents-aliases` scans your project, then wires **symlinks** between `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, your skills/rules/plugin directories, and generates format-correct **rule adapters** where frontmatter differs. Edit one file; every agent reads the same instructions.
+`agents-aliases` scans your project, then wires **symlinks** between the instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`) and skills/plugin directories (`.agents/skills`, `.claude/skills`, `.cline/skills`, …), and generates format-correct **rule adapters** for every tool whose frontmatter differs (Claude Code, Cursor, Windsurf, Copilot, Cline). Pick your agents once; edit one file per concern; every agent reads the same source.
 
 ```bash
 npx agents-aliases
@@ -26,6 +26,8 @@ npx agents-aliases
 | GitHub Copilot | `.github/copilot-instructions.md` (+ scoped `.github/instructions/*.instructions.md`) |
 | Cursor | `.cursor/rules/*.mdc` |
 | Windsurf | `.windsurf/rules/*.md` |
+| OpenCode | `AGENTS.md` |
+| Cline | `.clinerules/*.md`, `.cline/skills` |
 
 Without help, teams copy-paste the same content into several of these and watch them drift apart. With `agents-aliases`, there is exactly one real file per concern.
 
@@ -95,7 +97,7 @@ See [docs/features.md](docs/features.md) for the complete behavior reference and
 
 | Command | What it does |
 | --- | --- |
-| *(default)* | Interactive wizard: scans, asks which concerns to wire, which agents to target (**enter = all**), previews, applies |
+| *(default)* | Interactive wizard: scans, asks which agents to wire (one picker, **enter = all**), resolves any file conflicts (skip/overwrite), previews, applies |
 | `status` | Report canonicals, aliases, broken links, generated files |
 | `sync` | Repair broken aliases, regenerate drifted rule adapters |
 | `check` | Read-only CI gate — exits non-zero on broken/duplicated/drifted wiring |
@@ -146,7 +148,7 @@ pnpm build       # tsdown -> dist/cli.js
 Releasing: push a version tag — `.github/workflows/release.yml` verifies, builds, publishes to npm and attaches the tarball to a GitHub release:
 
 ```bash
-git tag v0.1.1 && git push origin v0.1.1
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
 Prerequisite: a one-time **npm trusted publisher (OIDC)** configuration for this package, pointing at `release.yml`. No `NPM_TOKEN` secret is needed — provenance is signed automatically.
@@ -163,7 +165,7 @@ src/
 │   ├── symlink.ts      # relative link primitives
 │   └── rules.ts        # deterministic adapter generation
 ├── commands/           # init (wizard), status, sync, check, preview
-├── ui/prompts.ts       # thin @clack/prompts layer
+├── ui/                 # thin @clack/prompts layer: prompts, search-multiselect, summary
 └── util/fs.ts          # path classification, hashing, git status
 test/                   # vitest: unit + planner + wizard + CLI smoke
 ```
