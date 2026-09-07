@@ -114,8 +114,8 @@ Exit codes: `0` clean · `1` problems found · `2` usage error.
 
 ## Safety
 
-- Never overwrites a real file silently: identical duplicates are safe-swapped; differing ones require git (so history keeps the old content), a clean worktree for that path, and an explicit preview step.
-- Skills/rule directories with genuinely different contents are never merged automatically — they're reported as *blocked* for manual merging.
+- Never overwrites a real file silently: identical duplicates are safe-swapped; a differing file becomes a **conflict** you resolve per file in the interactive wizard (skip or overwrite, with a warning when there's no git safety net). Non-interactively (`--yes`/CI), a differing instruction file in a clean git repo is replaced (history keeps the old content) and every other conflict is reported and left untouched.
+- Skills/rule directories with genuinely different contents are never merged automatically — the wizard offers skip/overwrite (overwrite replaces the whole tree); non-interactively they're reported as conflicts.
 - Generated files carry a marker and are regenerated deterministically, so drift is detectable byte-for-byte. Authored files without the marker are never overwritten.
 - Non-git projects get read-only treatment when content would be lost.
 

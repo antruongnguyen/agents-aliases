@@ -39,15 +39,25 @@ export type Action =
       note?: string;
     };
 
+export interface Conflict {
+  targetPath: string;
+  canonicalPath: string;
+  concern: ConcernKind;
+  kind: "file" | "dir";
+  /** true when the old content is recoverable via git (repo && path not dirty). */
+  gitRecoverable: boolean;
+}
+
 export interface Plan {
   actions: Action[];
   noopCount: number;
   warnings: string[];
   blocked: string[];
+  conflicts: Conflict[];
 }
 
 function emptyPlan(): Plan {
-  return { actions: [], noopCount: 0, warnings: [], blocked: [] };
+  return { actions: [], noopCount: 0, warnings: [], blocked: [], conflicts: [] };
 }
 
 export function makeDefaultChoices(
@@ -76,9 +86,11 @@ export function makeDefaultChoices(
       const canonicalSelected =
         (canonicalId !== null && filter.has(canonicalId)) ||
         (concern === "instructions" && canonicalId === "codex" && filter.size > 0);
-      if (canonicalId !== null && !filter.has(canonicalId) && !canonicalSelected) {
+      // Wire the concern only when at least one target survived the filter. The canonical may be
+      // a shared, non-agent preset (e.g. .agents/skills) no token maps to, so target count — not
+      // "is the canonical selected" — decides. Instructions scaffold keeps its codex special-case.
+      if (targetIds.length === 0 && !(canonicalSelected && concern === "instructions")) {
         enabled = false;
-        targetIds = [];
       }
     }
 
@@ -199,28 +211,14 @@ async function planAliasConcern(
             canonicalPath: canonical.path,
             note: "content identical to canonical",
           });
-        } else if (concern === "instructions") {
-          if (!detection.isGitRepo) {
-            plan.blocked.push(
-              `${target.path}: differs from ${canonical.path} and this project is not a git repo; refusing to replace (content would be lost). Merge manually, then re-run.`,
-            );
-          } else if (detection.dirtyPaths.has(target.path)) {
-            plan.blocked.push(
-              `${target.path}: has uncommitted local edits; commit or stash them first.`,
-            );
-          } else {
-            plan.actions.push({
-              kind: "symlink",
-              op: "replace",
-              targetPath: target.path,
-              canonicalPath: canonical.path,
-              note: "content differs — previous version stays recoverable via git history",
-            });
-          }
         } else {
-          plan.blocked.push(
-            `${target.path}: differs from ${canonical.path}; merge content manually, then re-run.`,
-          );
+          plan.conflicts.push({
+            targetPath: target.path,
+            canonicalPath: canonical.path,
+            concern,
+            kind: state.type,
+            gitRecoverable: detection.isGitRepo && !detection.dirtyPaths.has(target.path),
+          });
         }
         break;
       }
@@ -342,6 +340,47 @@ export async function plan(detection: Detection, choices: Choices): Promise<Plan
   await planAliasConcern(detection, choices.plugins, "plugins", result);
   await planRulesConcern(detection, choices.rules, result);
   return result;
+}
+
+/**
+ * Resolve conflicts for a non-interactive run (`--yes`/CI): overwrite only where the old content
+ * is recoverable from git, and only for instructions (matching the historical safe default).
+ * Everything else stays an unresolved conflict, so `--yes` never silently destroys content.
+ * Mutates `plan`: converts resolved conflicts into `replace` actions; leaves the rest in `conflicts`.
+ */
+export function resolveConflictsNonInteractive(plan: Plan): void {
+  const unresolved: Conflict[] = [];
+  for (const c of plan.conflicts) {
+    if (c.concern === "instructions" && c.gitRecoverable) {
+      plan.actions.push({
+        kind: "symlink",
+        op: "replace",
+        targetPath: c.targetPath,
+        canonicalPath: c.canonicalPath,
+        note: "content differs — previous version stays recoverable via git history",
+      });
+    } else {
+      unresolved.push(c);
+    }
+  }
+  plan.conflicts = unresolved;
+}
+
+/**
+ * Convert a user-accepted "overwrite" conflict into a `replace` action (interactive path).
+ * Mutates `plan`: appends the action and removes the conflict from `plan.conflicts`.
+ */
+export function overwriteConflict(plan: Plan, conflict: Conflict): void {
+  plan.actions.push({
+    kind: "symlink",
+    op: "replace",
+    targetPath: conflict.targetPath,
+    canonicalPath: conflict.canonicalPath,
+    note: conflict.gitRecoverable
+      ? "content differs — previous version stays recoverable via git history"
+      : "content differs — overwritten at your request (no git safety net)",
+  });
+  plan.conflicts = plan.conflicts.filter((c) => c.targetPath !== conflict.targetPath);
 }
 
 export interface ApplySummary {

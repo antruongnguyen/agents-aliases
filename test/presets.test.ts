@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AGENT_PICKER,
   CONCERN_ORDER,
   PRESETS,
   expandAgentList,
@@ -43,6 +44,13 @@ describe("presets", () => {
     expect(set.has("rules-claude")).toBe(true);
     expect(set.has("rules-cursor")).toBe(true);
     expect(set.has("codex")).toBe(false);
+  });
+
+  it("keeps AGENT_PICKER tokens in sync with valid agent shortcuts", () => {
+    for (const { token } of AGENT_PICKER) {
+      // Every picker token must expand to at least one real preset id.
+      expect(expandAgentList(token).size).toBeGreaterThan(0);
+    }
   });
 
   it("maps rule file names per adapter", () => {

@@ -72,14 +72,15 @@ Each path is classified as: real file/dir (canonical candidate), working symlink
 Run bare (`npx agents-aliases`) for the interactive flow:
 
 1. **Scan summary** — every non-missing path with its state.
-2. **Per concern with detected content** — "Set up aliases for …?" (default yes). Concerns with nothing on disk are skipped.
+2. **Agent picker** — one multi-select of all supported agents (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Windsurf, OpenCode, Cline), all pre-checked. **Submitting empty = select everything.** The selection drives every concern (same filter as `--agents`).
 3. **Canonical picker** — appears only when ≥ 2 real sources exist for a concern; options are annotated `content identical to other copies` / `has unique content`.
-4. **Target multi-select** — all supported agents pre-checked; hints show each path's current state (`exists (will be replaced by alias)`, `already linked`, `not set up`). **Submitting empty = select everything.**
-5. **Scaffold offer** — if no instruction file exists at all: create `AGENTS.md` stub and wire all agents to it.
-6. **Preview plan** — every action with its link target and note; warnings and blocked items listed.
-7. **Confirm → apply** — spinner + counts (`links created / replaced / repaired / generated`).
+4. **Conflict resolution** — for each real file whose content *differs* from the chosen canonical, a per-file prompt: **skip** (leave it untouched) or **overwrite** (replace it with the alias). When the project is not a git repo — or the file has uncommitted edits — the overwrite option is flagged `no git safety net — the original will be lost`.
+5. **Preview plan** — every action with its link target and note; warnings, skipped conflicts, and blocked items listed.
+6. **Confirm → apply** — spinner + counts (`links created / replaced / repaired / generated`).
 
-Cancelling any prompt exits cleanly without changes.
+If no instruction file exists at all, an `AGENTS.md` stub is scaffolded and wired to the selected agents (shown in the preview before you confirm). Cancelling any prompt exits cleanly without changes.
+
+**Non-interactive** (`--yes`, `CI`, or no TTY): conflicts are never overwritten silently. A differing instruction file in a clean git repo is replaced (recoverable via history); every other conflict is reported and left untouched, and the run exits `1`.
 
 ## Commands
 
@@ -154,10 +155,10 @@ Generation is a pure function of `(source path, source bytes, format)` — runni
 | Symlink pointing elsewhere | Repaired to canonical |
 | Broken symlink | Repaired |
 | Real duplicate, identical bytes/tree | Safe swap to symlink |
-| Real duplicate, differs, git repo, path clean | Swap after preview ("recoverable via git history") |
-| Real duplicate, differs, no git repo | **Blocked** — content would be lost |
-| Real duplicate, differs, path has uncommitted changes | **Blocked** — commit/stash first |
-| Differing skill/plugin trees | **Blocked** — manual merge required (never auto-merged) |
+| Real duplicate, differs, git repo, path clean | Interactive: skip or overwrite (overwrite is git-recoverable). Non-interactive: instructions auto-replace; other concerns reported as a conflict |
+| Real duplicate, differs, no git repo | Interactive: skip or overwrite (flagged "no git safety net"). Non-interactive: reported as a conflict, left untouched (exit 1) |
+| Real duplicate, differs, path has uncommitted changes | Interactive: skip or overwrite (flagged "no git safety net"). Non-interactive: reported as a conflict, left untouched (exit 1) |
+| Differing skill/plugin trees | Interactive: skip or overwrite (overwrite replaces the whole tree). Non-interactive: reported as a conflict (never auto-merged) |
 | Foreign rule files in a target rules dir | **Blocked** — merge into canonical first |
 | Authored file (no marker) at an adapter's output path | **Blocked** — never overwritten; rename or merge it into the canonical |
 | Rules dir already symlinked to canonical | Left alone with explanatory warning |

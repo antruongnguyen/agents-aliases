@@ -14,6 +14,13 @@ export function renderPlan(plan: Plan): string {
   for (const warning of plan.warnings) {
     lines.push(`  ! warn: ${warning}`);
   }
+  for (const conflict of plan.conflicts) {
+    lines.push(
+      `  ? conflict: ${conflict.targetPath} differs from ${conflict.canonicalPath}${
+        conflict.gitRecoverable ? "" : " (no git safety net)"
+      }`,
+    );
+  }
   for (const blocked of plan.blocked) {
     lines.push(`  x blocked: ${blocked}`);
   }

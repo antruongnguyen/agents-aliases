@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { renderSetupSummary, summarizePlan } from "../src/ui/summary.js";
 import type { Plan } from "../src/engine/planner.js";
 
-const basePlan: Plan = { actions: [], noopCount: 0, warnings: [], blocked: [] };
+const basePlan: Plan = { actions: [], noopCount: 0, warnings: [], blocked: [], conflicts: [] };
 
 describe("summarizePlan", () => {
   it("groups symlink actions by canonical path", () => {

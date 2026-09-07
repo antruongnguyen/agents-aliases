@@ -3,13 +3,15 @@ import pc from "picocolors";
 
 import { describeState, type Detection } from "../detect.js";
 import {
+  AGENT_PICKER,
   CONCERN_LABELS,
   CONCERN_ORDER,
   PRESETS,
+  expandAgentList,
   presetsByConcern,
   type ConcernKind,
 } from "../presets.js";
-import type { Choices } from "../engine/planner.js";
+import { makeDefaultChoices, type Choices } from "../engine/planner.js";
 import { cancelSymbol, searchMultiselect } from "./search-multiselect.js";
 
 export function isInteractive(): boolean {
@@ -21,15 +23,6 @@ function checkCancel(value: unknown): void {
     p.cancel("Cancelled.");
     process.exit(0);
   }
-}
-
-function stateHint(detection: Detection, concern: ConcernKind, presetId: string): string {
-  const preset = PRESETS.find((x) => x.id === presetId);
-  const state = detection.concerns[concern].states.get(presetId);
-  let hint = describeState(state);
-  if (hint === "exists") hint = "exists (will be replaced by alias)";
-  else if (hint.startsWith("linked")) hint = "already linked";
-  return `${preset?.path ?? ""} · ${hint}`;
 }
 
 async function pickCanonical(
@@ -76,22 +69,11 @@ function findPath(presetId: string): string | undefined {
   return PRESETS.find((x) => x.id === presetId)?.path;
 }
 
-async function pickTargets(
-  detection: Detection,
-  concern: ConcernKind,
-  canonicalId: string | null,
-): Promise<string[]> {
-  const items = presetsByConcern(concern)
-    .filter((preset) => preset.id !== canonicalId)
-    .map((preset) => ({
-      value: preset.id,
-      label: `${preset.tool}`,
-      hint: stateHint(detection, concern, preset.id),
-    }));
-
-  if (items.length === 0) return [];
+/** One up-front multiselect of agents; empty submit = all (matches "enter = everything"). */
+async function pickAgents(): Promise<Set<string>> {
+  const items = AGENT_PICKER.map((a) => ({ value: a.token, label: a.label }));
   const selected = await searchMultiselect({
-    message: `Target agents for ${CONCERN_LABELS[concern].toLowerCase()}?`,
+    message: "Which agents should share your configuration?",
     items,
     initialSelected: items.map((o) => o.value),
     selectAll: true,
@@ -101,7 +83,8 @@ async function pickTargets(
     p.cancel("Cancelled.");
     process.exit(0);
   }
-  return selected as string[];
+  const tokens = selected as string[];
+  return expandAgentList(tokens.join(","));
 }
 
 export async function runWizard(detection: Detection): Promise<Choices | null> {
@@ -123,59 +106,22 @@ export async function runWizard(detection: Detection): Promise<Choices | null> {
       scanLines.push(`  ${icon} ${s.relPath.padEnd(34)} ${describeState(s)}`);
     }
   }
-  p.log.message(scanLines.join("\n"));
+  if (scanLines.length > 0) p.log.message(scanLines.join("\n"));
 
-  const choices = {} as Choices;
+  const agents = await pickAgents();
+  const choices = makeDefaultChoices(detection, { agents });
+
+  // Per-concern canonical override when the user has ≥2 real sources to choose from.
   for (const concern of CONCERN_ORDER) {
-    choices[concern] = { enabled: false, canonicalId: null, targetIds: [] };
-  }
-
-  for (const concern of CONCERN_ORDER) {
-    const scan = detection.concerns[concern];
-    const hasAnything = [...scan.states.values()].some((s) => s.type !== "missing");
-
-    if (!hasAnything) continue;
-
-    const confirm = await p.confirm({
-      message: `Set up aliases for ${CONCERN_LABELS[concern].toLowerCase()}?`,
-      initialValue: true,
-    });
-    checkCancel(confirm);
-    if (!confirm) {
-      choices[concern] = { enabled: false, canonicalId: null, targetIds: [] };
-      continue;
-    }
-
+    if (!choices[concern].enabled) continue;
     const canonicalId = await pickCanonical(detection, concern);
-    if (canonicalId === null) {
-      choices[concern] = { enabled: false, canonicalId: null, targetIds: [] };
-      continue;
+    if (canonicalId && canonicalId !== choices[concern].canonicalId) {
+      const targetIds = choices[concern].targetIds
+        .filter((id) => id !== canonicalId)
+        .concat(choices[concern].canonicalId ? [choices[concern].canonicalId] : [])
+        .filter((id) => agents.has(id));
+      choices[concern] = { enabled: true, canonicalId, targetIds };
     }
-
-    const targetIds = await pickTargets(detection, concern, canonicalId);
-    if (targetIds.length === 0) {
-      choices[concern] = { enabled: false, canonicalId: null, targetIds: [] };
-      continue;
-    }
-    choices[concern] = { enabled: true, canonicalId, targetIds };
-  }
-
-  const instructionsScan = detection.concerns.instructions;
-  if ([...instructionsScan.states.values()].every((s) => s.type === "missing")) {
-    const scaffold = await p.confirm({
-      message: "No instruction file found. Create AGENTS.md and wire all agents to it?",
-      initialValue: true,
-    });
-    checkCancel(scaffold);
-    choices.instructions = scaffold
-      ? {
-          enabled: true,
-          canonicalId: "codex",
-          targetIds: presetsByConcern("instructions")
-            .map((x) => x.id)
-            .filter((id) => id !== "codex"),
-        }
-      : { enabled: false, canonicalId: null, targetIds: [] };
   }
 
   p.outro(pc.dim("Review the plan to confirm."));

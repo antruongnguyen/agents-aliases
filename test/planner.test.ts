@@ -5,7 +5,9 @@ import { detect } from "../src/detect.js";
 import {
   applyPlan,
   makeDefaultChoices,
+  overwriteConflict,
   plan,
+  resolveConflictsNonInteractive,
   type Action,
   type Choices,
   type Plan,
@@ -76,20 +78,22 @@ describe("plan: instructions", () => {
     expect(lst.isSymbolicLink()).toBe(true);
   });
 
-  it("blocks differing duplicates when not a git repo", async () => {
+  it("reports a conflict for differing duplicates when not a git repo", async () => {
     const root = await makeProject();
     await writeRel(root, "AGENTS.md", "# agents\n");
     await writeRel(root, "CLAUDE.md", "# claude specific stuff\n");
     const d = await detect(root);
     const p = await plan(d, ALL(d));
 
-    expect(p.blocked.join("\n")).toContain("CLAUDE.md");
+    const conflict = p.conflicts.find((c) => c.targetPath === "CLAUDE.md");
+    expect(conflict).toBeDefined();
+    expect(conflict?.gitRecoverable).toBe(false);
     expect(
       p.actions.filter((a) => a.kind === "symlink" && a.targetPath === "CLAUDE.md"),
     ).toHaveLength(0);
   });
 
-  it("replaces differing duplicates in a clean git repo", async () => {
+  it("marks differing duplicates in a clean git repo as git-recoverable conflicts", async () => {
     const root = await makeProject();
     await writeRel(root, "AGENTS.md", "# agents\n");
     await writeRel(root, "CLAUDE.md", "# claude\n");
@@ -97,12 +101,20 @@ describe("plan: instructions", () => {
     d.isGitRepo = true;
     const p = await plan(d, ALL(d));
 
+    const conflict = p.conflicts.find((c) => c.targetPath === "CLAUDE.md");
+    expect(conflict).toBeDefined();
+    expect(conflict?.gitRecoverable).toBe(true);
+    // The pure plan never auto-replaces; the non-interactive resolver does that.
+    expect(symlinkActions(p, "CLAUDE.md")).toHaveLength(0);
+
+    resolveConflictsNonInteractive(p);
     const claudeAction = symlinkActions(p, "CLAUDE.md")[0];
     expect(claudeAction?.op).toBe("replace");
     expect(claudeAction?.note).toContain("git history");
+    expect(p.conflicts.find((c) => c.targetPath === "CLAUDE.md")).toBeUndefined();
   });
 
-  it("blocks replacement of dirty files even in git repos", async () => {
+  it("reports a conflict (not auto-replace) for dirty files even in git repos", async () => {
     const root = await makeProject();
     await writeRel(root, "AGENTS.md", "# agents\n");
     await writeRel(root, "CLAUDE.md", "# claude\n");
@@ -110,7 +122,31 @@ describe("plan: instructions", () => {
     d.isGitRepo = true;
     d.dirtyPaths.add("CLAUDE.md");
     const p = await plan(d, ALL(d));
-    expect(p.blocked.join("\n")).toContain("uncommitted");
+    const conflict = p.conflicts.find((c) => c.targetPath === "CLAUDE.md");
+    expect(conflict?.gitRecoverable).toBe(false);
+    // Non-interactive resolver leaves dirty conflicts unresolved (never destroys uncommitted work).
+    resolveConflictsNonInteractive(p);
+    expect(p.conflicts.find((c) => c.targetPath === "CLAUDE.md")).toBeDefined();
+    expect(symlinkActions(p, "CLAUDE.md")).toHaveLength(0);
+  });
+
+  it("overwriteConflict turns a conflict into a replace action and applies it", async () => {
+    const root = await makeProject();
+    await writeRel(root, "AGENTS.md", "# agents\n");
+    await writeRel(root, "CLAUDE.md", "# claude specific stuff\n");
+    const d = await detect(root); // not a git repo → gitRecoverable false
+    const p = await plan(d, ALL(d));
+    const conflict = p.conflicts.find((c) => c.targetPath === "CLAUDE.md")!;
+
+    overwriteConflict(p, conflict);
+    expect(p.conflicts.find((c) => c.targetPath === "CLAUDE.md")).toBeUndefined();
+    const action = symlinkActions(p, "CLAUDE.md")[0];
+    expect(action?.op).toBe("replace");
+
+    await applyPlan(d, p, false);
+    const fsp = await import("node:fs/promises");
+    const lst = await fsp.lstat(path.join(root, "CLAUDE.md"));
+    expect(lst.isSymbolicLink()).toBe(true);
   });
 
   it("counts correct existing links as noop and repairs wrong ones", async () => {
@@ -130,7 +166,7 @@ describe("plan: instructions", () => {
 });
 
 describe("plan: skills", () => {
-  it("replaces identical skill trees and blocks differing ones", async () => {
+  it("replaces identical skill trees and reports conflicts for differing ones", async () => {
     const root = await makeProject();
     await writeRel(root, ".agents/skills/alpha/SKILL.md", "alpha\n");
     await writeRel(root, ".claude/skills/alpha/SKILL.md", "alpha\n");
@@ -140,7 +176,9 @@ describe("plan: skills", () => {
 
     const claudeAction = symlinkActions(p, ".claude/skills")[0];
     expect(claudeAction?.op).toBe("replace");
-    expect(p.blocked.join("\n")).toContain(".codex/skills");
+    const conflict = p.conflicts.find((c) => c.targetPath === ".codex/skills");
+    expect(conflict).toBeDefined();
+    expect(conflict?.kind).toBe("dir");
   });
 });
 

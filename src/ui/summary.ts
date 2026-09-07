@@ -22,6 +22,7 @@ export interface PlanSummary {
   generatedGroups: GeneratedGroup[];
   warnings: string[];
   blocked: string[];
+  conflicts: string[];
   noopCount: number;
 }
 
@@ -48,6 +49,9 @@ export function summarizePlan(planResult: Plan): PlanSummary {
     generatedGroups: [],
     warnings: [...planResult.warnings],
     blocked: [...planResult.blocked],
+    conflicts: planResult.conflicts.map(
+      (c) => `${c.targetPath} differs from ${c.canonicalPath}${c.gitRecoverable ? "" : " (no git safety net)"}`,
+    ),
     noopCount: planResult.noopCount,
   };
 
@@ -130,6 +134,7 @@ export function renderSetupSummary(planResult: Plan): string {
     lines.push(pc.dim(`already up to date: ${s.noopCount}`));
   }
   for (const w of s.warnings) lines.push(`  ${pc.yellow(`! ${w}`)}`);
+  for (const c of s.conflicts) lines.push(`  ${pc.yellow(`? skipped: ${c}`)}`);
   for (const b of s.blocked) lines.push(`  ${pc.red(`x ${b}`)}`);
 
   return lines.join("\n");

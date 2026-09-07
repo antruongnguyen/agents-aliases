@@ -67,21 +67,29 @@ describe("runWizard (defaults accepted)", () => {
     });
   });
 
-  it("respects a declined concern", async () => {
-    confirmMock.mockImplementationOnce(async () => false);
+  it("excludes an agent the user deselects in the global picker", async () => {
+    // Pick claude + copilot only: instructions target claude (not gemini), and the cursor-canonical
+    // rules generate an adapter for claude/copilot but not windsurf.
+    searchMock.mockImplementationOnce(async () => ["claude", "copilot"]);
     const root = await makeProject();
     await writeRel(root, "AGENTS.md", "# agents\n");
+    await writeRel(root, ".cursor/rules/ts.mdc", "---\ndescription: t\n---\nb\n");
     const d = await detect(root);
     const choices = await runWizard(d);
-    expect(choices!.instructions.enabled).toBe(false);
+    expect(choices!.instructions.targetIds).toContain("claude");
+    expect(choices!.instructions.targetIds).not.toContain("gemini");
+    expect(choices!.rules.enabled).toBe(true);
+    expect(choices!.rules.targetIds).not.toContain("rules-windsurf");
   });
 
-  it("disables a concern when no targets are selected", async () => {
+  it("disables everything when the user selects no agents", async () => {
     searchMock.mockImplementationOnce(async () => []);
     const root = await makeProject();
     await writeRel(root, "AGENTS.md", "# agents\n");
+    await writeRel(root, ".agents/skills/x/SKILL.md", "x\n");
     const d = await detect(root);
     const choices = await runWizard(d);
     expect(choices!.instructions.enabled).toBe(false);
+    expect(choices!.skills.enabled).toBe(false);
   });
 });

@@ -66,6 +66,7 @@ interface Plan {
   noopCount: number;      // already-correct wiring
   warnings: string[];     // applied anyway / need attention
   blocked: string[];      // refused for safety; never silently skipped
+  conflicts: Conflict[];  // differing real files — resolved interactively (skip/overwrite) or by the non-interactive resolver
 }
 ```
 
@@ -97,13 +98,13 @@ Cursor MDC files require `description`/`globs`/`alwaysApply`; Copilot scoped ins
 
 ## Safety gates (planner-level)
 
-Destructive actions are gated where they're *planned*, not where they're executed:
+Destructive actions are gated where they're *planned*, not where they're executed. `plan()` stays pure — it never prompts. A differing real file is emitted as a `conflict` (data), carrying `gitRecoverable = isGitRepo && !dirty`; the interactive shell (`init.ts`) resolves each conflict into a `replace` action (overwrite) or leaves it (skip), and the non-interactive resolver (`resolveConflictsNonInteractive`) auto-replaces only git-recoverable instruction conflicts. So:
 
-- differing-duplicate replacement requires `isGitRepo && !dirtyPaths.has(path)` — otherwise the action becomes a `blocked` entry with an explanation;
-- non-instruction concerns (skills/plugins) are never auto-replaced when content differs — merge conflicts must be human-resolved;
-- foreign rule files block the whole target dir to avoid mixed generated/authored states.
+- a differing real file (any concern) becomes a `conflict`, never a silent overwrite;
+- interactive runs decide per file (skip/overwrite, overwrite allowed even without git after an explicit confirm); `--yes`/CI never overwrite non-recoverable content, exiting `1` with the conflict reported;
+- foreign rule files and unmarked authored adapter outputs stay hard `blocked` — there is no canonical to reconcile them against.
 
-Because gates live in `plan()`, every consumer (wizard preview, `--yes`, dry-run) inherits them automatically.
+Because conflicts and blocks are computed in `plan()` as data, every consumer (wizard preview, `--yes`, dry-run) sees the same classification; only the *resolution* differs by surface.
 
 ## Testing strategy
 

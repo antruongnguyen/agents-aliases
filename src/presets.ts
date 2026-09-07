@@ -161,6 +161,18 @@ const AGENT_SHORTCUTS: Record<string, string[]> = {
   cline: ["skills-cline", "rules-cline"],
 };
 
+/** Agents offered in the interactive picker, in display order. Token = an AGENT_SHORTCUTS key. */
+export const AGENT_PICKER: { token: string; label: string }[] = [
+  { token: "claude", label: "Claude Code" },
+  { token: "codex", label: "Codex" },
+  { token: "gemini", label: "Gemini CLI" },
+  { token: "copilot", label: "GitHub Copilot" },
+  { token: "cursor", label: "Cursor" },
+  { token: "windsurf", label: "Windsurf" },
+  { token: "opencode", label: "OpenCode" },
+  { token: "cline", label: "Cline" },
+];
+
 export function knownAgentTokens(): Set<string> {
   const out = new Set<string>(Object.keys(AGENT_SHORTCUTS));
   for (const p of PRESETS) out.add(p.id);

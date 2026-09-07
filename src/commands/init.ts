@@ -2,7 +2,13 @@ import * as p from "@clack/prompts";
 import pc from "picocolors";
 
 import { detect } from "../detect.js";
-import { applyPlan, makeDefaultChoices, plan } from "../engine/planner.js";
+import {
+  applyPlan,
+  makeDefaultChoices,
+  overwriteConflict,
+  plan,
+  resolveConflictsNonInteractive,
+} from "../engine/planner.js";
 import type { Choices } from "../engine/planner.js";
 import { parseAgentList } from "../presets.js";
 import { isInteractive, runWizard } from "../ui/prompts.js";
@@ -40,17 +46,45 @@ export async function runInit(options: InitOptions): Promise<number> {
 
   const planResult = await plan(detection, choices);
 
+  const interactiveConfirm = isInteractive() && !options.yes;
+
+  // Resolve content conflicts: interactively (skip/overwrite per file) or via the safe
+  // non-interactive default. Overwrites become `replace` actions; skips stay in `conflicts`.
+  if (interactiveConfirm) {
+    const pending = planResult.conflicts.slice();
+    for (const conflict of pending) {
+      const warning = conflict.gitRecoverable
+        ? "the previous version stays recoverable via git history"
+        : pc.yellow("no git safety net — the original will be lost");
+      const decision = await p.select({
+        message: `${conflict.targetPath} differs from ${conflict.canonicalPath}`,
+        options: [
+          { value: "skip", label: "Skip", hint: "leave the existing file untouched" },
+          { value: "overwrite", label: "Overwrite with an alias", hint: warning },
+        ],
+        initialValue: "skip",
+      });
+      if (p.isCancel(decision)) {
+        p.cancel("Cancelled.");
+        return 0;
+      }
+      if (decision === "overwrite") overwriteConflict(planResult, conflict);
+    }
+  } else {
+    resolveConflictsNonInteractive(planResult);
+  }
+
+  const unresolved = planResult.blocked.length + planResult.conflicts.length;
+
   const hasWork =
     planResult.actions.length > 0 ||
     planResult.warnings.length > 0 ||
-    planResult.blocked.length > 0;
+    unresolved > 0;
 
   if (!hasWork) {
     p.outro("Everything already wired up.");
     return 0;
   }
-
-  const interactiveConfirm = isInteractive() && !options.yes;
 
   if (interactiveConfirm) {
     console.log();
@@ -61,7 +95,7 @@ export async function runInit(options: InitOptions): Promise<number> {
 
   if (options.dryRun) {
     p.outro("Dry run — no changes were made.");
-    return planResult.blocked.length > 0 ? 1 : 0;
+    return planResult.blocked.length + planResult.conflicts.length > 0 ? 1 : 0;
   }
 
   if (interactiveConfirm) {
@@ -86,17 +120,21 @@ export async function runInit(options: InitOptions): Promise<number> {
     summary.repaired && pc.yellow(`${summary.repaired} repaired`),
     summary.generated && pc.green(`${summary.generated} generated`),
   ].filter(Boolean);
-  if (summary.errors.length === 0 && planResult.blocked.length === 0) {
+  const unresolvedAfter = planResult.blocked.length + planResult.conflicts.length;
+  if (summary.errors.length === 0 && unresolvedAfter === 0) {
     spinner.stop(`Done: ${parts.join(pc.dim(", ")) || "no changes"}.`);
   } else {
     spinner.stop(pc.yellow("Finished with warnings."));
   }
   for (const err of summary.errors) p.log.error(err);
   for (const b of planResult.blocked) p.log.warn(`Blocked: ${b}`);
+  for (const c of planResult.conflicts) {
+    p.log.warn(`Skipped (differs from ${c.canonicalPath}): ${c.targetPath}`);
+  }
   for (const w of planResult.warnings) p.log.warn(w);
-  if (planResult.blocked.length === 0 && summary.errors.length === 0) {
+  if (unresolvedAfter === 0 && summary.errors.length === 0) {
     p.note("Commit the new symlinks so your team gets the same wiring.", "next steps");
   }
   p.outro(pc.green("Done."));
-  return summary.errors.length > 0 ? 1 : planResult.blocked.length > 0 ? 1 : 0;
+  return summary.errors.length > 0 || unresolvedAfter > 0 ? 1 : 0;
 }
