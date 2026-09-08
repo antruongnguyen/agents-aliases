@@ -196,25 +196,27 @@ describe("plan: skills", () => {
 });
 
 describe("plan: rules", () => {
-  it("symlinks same-format targets and generates adapters for differing-format targets", async () => {
+  it("generates adapters for differing-format targets and symlinks same-format targets", async () => {
     const root = await makeProject();
     await writeRel(root, ".cursor/rules/review.mdc", "---\ndescription: Review\n---\nDo review.\n");
     const d = await detect(root);
     const p = await plan(d, ALL(d));
 
-    // Cursor is canonical (mdc format). Claude and Cline share adapter:"claude" → symlink dirs.
-    const symlinkTargets = symlinkActions(p).map((a) => a.targetPath).sort();
-    expect(symlinkTargets).toContain(".claude/rules");
-    expect(symlinkTargets).toContain(".cline/rules");
-
-    // Windsurf and Copilot use differing formats → generate per-file adapters (not .cline/rules).
+    // Cursor is canonical (mdc). Claude and Cline use adapter:"claude" which differs → generate.
     const generateTargets = generateActions(p).map((a) => a.targetPath).sort();
     expect(generateTargets).toEqual([
+      ".claude/rules/review.md",
+      ".cline/rules/review.md",
       ".github/instructions/review.instructions.md",
       ".windsurf/rules/review.md",
     ]);
-    expect(generateTargets).not.toContain(".cline/rules/review.md");
-    expect(generateTargets).not.toContain(".claude/rules/review.md");
+
+    // No dir-level symlink actions for .claude/rules or .cline/rules.
+    expect(symlinkActions(p, ".claude/rules")).toHaveLength(0);
+    expect(symlinkActions(p, ".cline/rules")).toHaveLength(0);
+
+    const summary = await applyPlan(d, p, false);
+    expect(summary.generated).toBe(4);
   });
 
   it("symlinks Cline rules dir to Claude rules when Claude is canonical", async () => {

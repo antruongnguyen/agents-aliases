@@ -257,43 +257,29 @@ async function planRulesConcern(
 
   const canonicalBases = new Set(canonicalNames.map(stripExt));
 
-  // Partition targets by adapter format. Same-format targets wire as directory symlinks;
-  // differing-format targets fall through to per-file adapter generation below.
-  const formatGroups = new Map<string, AgentPreset[]>();
   for (const targetId of choice.targetIds) {
     if (targetId === canonical.id) continue;
     const target = findPreset(targetId);
     if (!target || target.adapter === undefined) continue;
-    const grp = formatGroups.get(target.adapter) ?? [];
-    grp.push(target);
-    formatGroups.set(target.adapter, grp);
-  }
 
-  // For each format group: first member (lowest PRESETS index = canonical order) is the
-  // format-canonical and symlinks to the rules canonical; remaining members symlink to it.
-  const generateTargetIds = new Set<string>();
-  for (const [, group] of formatGroups) {
-    const [formatCanonical, ...rest] = group;
-    if (!formatCanonical) continue;
-    if (group.length === 1 && formatCanonical.adapter !== canonical.adapter) {
-      // Single target with a different format — generate per-file adapters.
-      generateTargetIds.add(formatCanonical.id);
-    } else {
-      // Same-format group (2+ members, or 1 member sharing canonical's format):
-      // format-canonical symlinks to rules canonical, rest symlink to format-canonical.
-      planDirSymlinkTarget(detection, formatCanonical, canonical, "rules", plan);
-      for (const target of rest) {
-        planDirSymlinkTarget(detection, target, formatCanonical, "rules", plan);
+    // Same adapter format as canonical → wire the whole dir as a symlink.
+    if (target.adapter === canonical.adapter) {
+      const existing =
+        scan.states.get(target.id)?.type === "dir"
+          ? await listRuleFiles(path.resolve(detection.root, target.path))
+          : [];
+      const foreign = existing.filter((name) => !canonicalBases.has(stripExt(name)));
+      if (foreign.length > 0) {
+        plan.blocked.push(
+          `${target.path}: contains its own rule files (${foreign.join(", ")}); merge into ${canonical.path}, then re-run.`,
+        );
+        continue;
       }
+      planDirSymlinkTarget(detection, target, canonical, "rules", plan);
+      continue;
     }
-  }
 
-  for (const targetId of choice.targetIds) {
-    if (targetId === canonical.id) continue;
-    const target = findPreset(targetId);
-    if (!target || target.adapter === undefined) continue;
-    if (!generateTargetIds.has(target.id)) continue;
-
+    // Differing format — generate per-file adapters (unchanged path).
     const state = scan.states.get(target.id);
 
     if (state?.type === "symlink-file" || state?.type === "symlink-dir") {
