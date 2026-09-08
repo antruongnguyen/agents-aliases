@@ -8,6 +8,7 @@ import {
   findPreset,
   presetsByConcern,
   type AdapterFormat,
+  type AgentPreset,
   type ConcernKind,
 } from "../presets.js";
 import { relativeLinkTarget, createSymlink, replaceWithSymlink } from "./symlink.js";
@@ -136,13 +137,78 @@ function stripExt(name: string): string {
   return name.replace(RULE_EXT, "");
 }
 
+function planDirSymlinkTarget(
+  detection: Detection,
+  target: AgentPreset,
+  canonical: AgentPreset,
+  concern: ConcernKind,
+  plan: Plan,
+): void {
+  const { root } = detection;
+  const state = detection.concerns[concern].states.get(target.id);
+
+  switch (state?.type) {
+    case undefined:
+    case "missing":
+      plan.actions.push({
+        kind: "symlink",
+        op: "create",
+        targetPath: target.path,
+        canonicalPath: canonical.path,
+      });
+      break;
+    case "broken-symlink":
+      plan.actions.push({
+        kind: "symlink",
+        op: "repair",
+        targetPath: target.path,
+        canonicalPath: canonical.path,
+        note: `was a broken link -> ${state.linkText ?? "?"}`,
+      });
+      break;
+    case "symlink-file":
+    case "symlink-dir":
+      if (linkPointsTo(root, target.path, state.linkText, canonical.path)) {
+        plan.noopCount += 1;
+      } else {
+        plan.actions.push({
+          kind: "symlink",
+          op: "repair",
+          targetPath: target.path,
+          canonicalPath: canonical.path,
+          note: `was linked -> ${state.linkText ?? "?"}`,
+        });
+      }
+      break;
+    case "file":
+    case "dir":
+      if (identicalContent(detection, target.path, canonical.path)) {
+        plan.actions.push({
+          kind: "symlink",
+          op: "replace",
+          targetPath: target.path,
+          canonicalPath: canonical.path,
+          note: "content identical to canonical",
+        });
+      } else {
+        plan.conflicts.push({
+          targetPath: target.path,
+          canonicalPath: canonical.path,
+          concern,
+          kind: state.type,
+          gitRecoverable: detection.isGitRepo && !detection.dirtyPaths.has(target.path),
+        });
+      }
+      break;
+  }
+}
+
 async function planAliasConcern(
   detection: Detection,
   choice: ConcernChoice,
   concern: ConcernKind,
   plan: Plan,
 ): Promise<void> {
-  const { root } = detection;
   const canonical = choice.canonicalId ? findPreset(choice.canonicalId) : undefined;
   if (!choice.enabled || !canonical) return;
 
@@ -163,66 +229,7 @@ async function planAliasConcern(
     if (targetId === canonical.id) continue;
     const target = findPreset(targetId);
     if (!target) continue;
-    const state = scan.states.get(target.id);
-
-    switch (state?.type) {
-      case undefined:
-      case "missing": {
-        plan.actions.push({
-          kind: "symlink",
-          op: "create",
-          targetPath: target.path,
-          canonicalPath: canonical.path,
-        });
-        break;
-      }
-      case "broken-symlink": {
-        plan.actions.push({
-          kind: "symlink",
-          op: "repair",
-          targetPath: target.path,
-          canonicalPath: canonical.path,
-          note: `was a broken link -> ${state.linkText ?? "?"}`,
-        });
-        break;
-      }
-      case "symlink-file":
-      case "symlink-dir": {
-        if (linkPointsTo(root, target.path, state.linkText, canonical.path)) {
-          plan.noopCount += 1;
-        } else {
-          plan.actions.push({
-            kind: "symlink",
-            op: "repair",
-            targetPath: target.path,
-            canonicalPath: canonical.path,
-            note: `was linked -> ${state.linkText ?? "?"}`,
-          });
-        }
-        break;
-      }
-      case "file":
-      case "dir": {
-        if (identicalContent(detection, target.path, canonical.path)) {
-          plan.actions.push({
-            kind: "symlink",
-            op: "replace",
-            targetPath: target.path,
-            canonicalPath: canonical.path,
-            note: "content identical to canonical",
-          });
-        } else {
-          plan.conflicts.push({
-            targetPath: target.path,
-            canonicalPath: canonical.path,
-            concern,
-            kind: state.type,
-            gitRecoverable: detection.isGitRepo && !detection.dirtyPaths.has(target.path),
-          });
-        }
-        break;
-      }
-    }
+    planDirSymlinkTarget(detection, target, canonical, concern, plan);
   }
 }
 

@@ -180,6 +180,19 @@ describe("plan: skills", () => {
     expect(conflict).toBeDefined();
     expect(conflict?.kind).toBe("dir");
   });
+
+  it("repairs a skill symlink pointing elsewhere and noops a correct one", async () => {
+    const root = await makeProject();
+    await writeRel(root, ".agents/skills/a/SKILL.md", "a\n");
+    await linkRel(root, ".claude/skills", "../.agents/skills");     // correct (relative from .claude/)
+    await linkRel(root, ".codex/skills", "../wrong");               // wrong target
+    const d = await detect(root);
+    const p = await plan(d, ALL(d));
+
+    expect(symlinkActions(p, ".codex/skills")[0]?.op).toBe("repair");
+    expect(symlinkActions(p, ".claude/skills")).toHaveLength(0); // noop, no action
+    expect(p.noopCount).toBeGreaterThanOrEqual(1);
+  });
 });
 
 describe("plan: rules", () => {
