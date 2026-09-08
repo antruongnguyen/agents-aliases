@@ -5,8 +5,10 @@ import { detect } from "../detect.js";
 import { PRESETS, findPreset, presetsByConcern } from "../presets.js";
 import { generateAdapter } from "../engine/rules.js";
 import { createSymlink } from "../engine/symlink.js";
+import { planClinerulesMigration, type Plan } from "../engine/planner.js";
 
 interface SyncReport {
+  migrated: number;
   repairedLinks: number;
   regeneratedFiles: number;
   unfixable: string[];
@@ -17,11 +19,41 @@ export async function runSync(dryRun: boolean): Promise<number> {
   const root = process.cwd();
   const detection = await detect(root);
   const report: SyncReport = {
+    migrated: 0,
     repairedLinks: 0,
     regeneratedFiles: 0,
     unfixable: [],
     warnings: [],
   };
+
+  // A stale .clinerules is a repairable condition: migrate it before the rest of sync runs, so a
+  // freshly migrated .cline/rules is then seen (and repaired) correctly by the loops below.
+  const migrationPlan: Plan = {
+    actions: [],
+    noopCount: 0,
+    warnings: [],
+    blocked: [],
+    conflicts: [],
+  };
+  await planClinerulesMigration(detection, migrationPlan);
+  for (const action of migrationPlan.actions) {
+    if (action.kind !== "migrate") continue;
+    try {
+      if (!dryRun) {
+        const fromAbs = path.resolve(root, action.fromDir);
+        const toAbs = path.resolve(root, action.toDir);
+        await fsp.mkdir(path.dirname(toAbs), { recursive: true });
+        await fsp.rename(fromAbs, toAbs);
+      }
+      report.migrated += 1;
+    } catch (err) {
+      report.unfixable.push(
+        `${action.fromDir} -> ${action.toDir}: migration failed (${(err as Error).message}).`,
+      );
+    }
+  }
+  report.warnings.push(...migrationPlan.warnings);
+  report.unfixable.push(...migrationPlan.blocked);
 
   for (const preset of PRESETS) {
     const state = detection.concerns[preset.concern].states.get(preset.id);
@@ -90,7 +122,7 @@ export async function runSync(dryRun: boolean): Promise<number> {
     }
   }
 
-  console.log(`sync: ${report.repairedLinks} link(s) repaired, ${report.regeneratedFiles} generated file(s) refreshed.`);
+  console.log(`sync: ${report.migrated} migrated, ${report.repairedLinks} link(s) repaired, ${report.regeneratedFiles} generated file(s) refreshed.`);
   for (const w of report.warnings) console.log(`warn: ${w}`);
   for (const u of report.unfixable) console.log(`error: ${u}`);
   return report.unfixable.length > 0 ? 1 : 0;

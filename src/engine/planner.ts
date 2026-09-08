@@ -13,6 +13,7 @@ import {
 } from "../presets.js";
 import { relativeLinkTarget, createSymlink, replaceWithSymlink } from "./symlink.js";
 import { generateAdapter, parseGeneratedSource, targetFileName } from "./rules.js";
+import { treeSignature, walkTree } from "../util/fs.js";
 
 export interface ConcernChoice {
   enabled: boolean;
@@ -362,8 +363,9 @@ async function compareGenerated(
 
 const CLINERULES_LEGACY = ".clinerules";
 const CLINERULES_NEW = ".cline/rules";
+const CLINERULES_NEW_PRESET = "rules-cline";
 
-async function planClinerulesMigration(detection: Detection, plan: Plan): Promise<void> {
+export async function planClinerulesMigration(detection: Detection, plan: Plan): Promise<void> {
   const legacyAbs = path.resolve(detection.root, CLINERULES_LEGACY);
   let legacyExists = false;
   try {
@@ -407,6 +409,21 @@ async function planClinerulesMigration(detection: Detection, plan: Plan): Promis
   }
 
   plan.actions.push({ kind: "migrate", fromDir: CLINERULES_LEGACY, toDir: CLINERULES_NEW });
+
+  // Mutate the in-memory detection so downstream rules planning sees the *post-migration*
+  // reality: `.cline/rules` will exist as a real dir holding the old `.clinerules` content.
+  // Without this, planRulesConcern reads the pre-migration snapshot (`.cline/rules` missing) and
+  // emits a symlink `create` for a path that applyPlan's rename has since populated → EEXIST.
+  // We record `.cline/rules` as a `dir` whose signature equals the migrated legacy content, so
+  // planDirSymlinkTarget compares it against the canonical rules dir and picks `replace`
+  // (identical) or a `conflict` (differing) — same safety semantics as any other real dir.
+  const legacySignature = treeSignature(await walkTree(legacyAbs));
+  detection.dirSignatures.set(CLINERULES_NEW, legacySignature);
+  detection.concerns.rules.states.set(CLINERULES_NEW_PRESET, {
+    presetId: CLINERULES_NEW_PRESET,
+    relPath: CLINERULES_NEW,
+    type: "dir",
+  });
 }
 
 export async function plan(detection: Detection, choices: Choices): Promise<Plan> {

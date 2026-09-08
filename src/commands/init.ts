@@ -119,6 +119,7 @@ export async function runInit(options: InitOptions): Promise<number> {
     summary.replaced && pc.yellow(`${summary.replaced} replaced`),
     summary.repaired && pc.yellow(`${summary.repaired} repaired`),
     summary.generated && pc.green(`${summary.generated} generated`),
+    summary.migrated && pc.green(`${summary.migrated} migrated`),
   ].filter(Boolean);
   const unresolvedAfter = planResult.blocked.length + planResult.conflicts.length;
   if (summary.errors.length === 0 && unresolvedAfter === 0) {

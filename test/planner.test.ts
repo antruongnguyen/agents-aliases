@@ -351,6 +351,32 @@ describe(".clinerules migration", () => {
     expect(p.actions.filter((a) => a.kind === "migrate")).toHaveLength(0);
     expect(p.blocked.some((b) => b.includes(".clinerules: cannot migrate"))).toBe(true);
   });
+
+  it("migrates and symlinks .cline/rules to canonical without an EEXIST collision", async () => {
+    const root = await makeProject();
+    // Legacy Cline dir + a canonical Claude rules dir with identical content.
+    await writeRel(root, ".clinerules/review.md", "# review rule\n");
+    await writeRel(root, ".claude/rules/review.md", "# review rule\n");
+    const d = await detect(root);
+    d.isGitRepo = true;
+    const p = await plan(d, ALL(d));
+
+    // The plan migrates AND wires .cline/rules as a symlink (replace, not create), so applyPlan's
+    // rename doesn't collide with a later createSymlink.
+    expect(p.actions.filter((a) => a.kind === "migrate")).toHaveLength(1);
+    const clineAction = symlinkActions(p, ".cline/rules")[0];
+    expect(clineAction?.op).toBe("replace");
+
+    const summary = await applyPlan(d, p, false);
+    expect(summary.errors).toHaveLength(0);
+
+    const fsp = await import("node:fs/promises");
+    // .clinerules gone, .cline/rules is a symlink -> ../.claude/rules.
+    await expect(fsp.stat(path.join(root, ".clinerules"))).rejects.toThrow(/ENOENT/);
+    const lst = await fsp.lstat(path.join(root, ".cline/rules"));
+    expect(lst.isSymbolicLink()).toBe(true);
+    expect(await fsp.readlink(path.join(root, ".cline/rules"))).toBe("../.claude/rules");
+  });
 });
 
 describe("applyPlan dry run", () => {

@@ -139,7 +139,7 @@ export function renderSetupSummary(planResult: Plan): string {
   if (s.migrations.length > 0) {
     if (lines.length > 0) lines.push("");
     for (const m of s.migrations) {
-      lines.push(`  ${pc.green("migrate")}: ${m}`);
+      lines.push(`  ${pc.green("migrate")}: ${m}  ${pc.dim("(Cline rules moved; .clinerules is deprecated)")}`);
     }
   }
 
