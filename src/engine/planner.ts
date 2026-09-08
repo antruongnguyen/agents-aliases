@@ -414,16 +414,36 @@ export async function planClinerulesMigration(detection: Detection, plan: Plan):
   // reality: `.cline/rules` will exist as a real dir holding the old `.clinerules` content.
   // Without this, planRulesConcern reads the pre-migration snapshot (`.cline/rules` missing) and
   // emits a symlink `create` for a path that applyPlan's rename has since populated → EEXIST.
-  // We record `.cline/rules` as a `dir` whose signature equals the migrated legacy content, so
-  // planDirSymlinkTarget compares it against the canonical rules dir and picks `replace`
-  // (identical) or a `conflict` (differing) — same safety semantics as any other real dir.
-  const legacySignature = treeSignature(await walkTree(legacyAbs));
-  detection.dirSignatures.set(CLINERULES_NEW, legacySignature);
   detection.concerns.rules.states.set(CLINERULES_NEW_PRESET, {
     presetId: CLINERULES_NEW_PRESET,
     relPath: CLINERULES_NEW,
     type: "dir",
   });
+
+  // Pick the rules canonical the same way makeDefaultChoices does: the first existing rules
+  // source, in preset order, that is not Cline itself.
+  const canonicalRulesPreset = presetsByConcern("rules").find(
+    (p) => p.id !== CLINERULES_NEW_PRESET && detection.concerns.rules.sources.includes(p.id),
+  );
+
+  if (canonicalRulesPreset) {
+    // A same-format symlink TARGET exists and the user chose it as canonical. The migrated
+    // `.cline/rules` is a git-recoverable, deprecated-location dir — so it must be wired via
+    // `replace` REGARDLESS of content difference (the "protect differing content → conflict"
+    // rule guards a normal pre-existing dir, not a just-migrated one whose old bytes stay in git).
+    // Forcing `.cline/rules`'s signature to equal the canonical's makes identicalContent() true →
+    // planDirSymlinkTarget emits `replace`.
+    const canonicalAbs = path.resolve(detection.root, canonicalRulesPreset.path);
+    const canonicalSignature =
+      detection.dirSignatures.get(canonicalRulesPreset.path) ??
+      treeSignature(await walkTree(canonicalAbs));
+    detection.dirSignatures.set(canonicalRulesPreset.path, canonicalSignature);
+    detection.dirSignatures.set(CLINERULES_NEW, canonicalSignature);
+  } else {
+    // Cline is itself the rules canonical (no other rules dir) — no symlink target to wire.
+    // Keep the migrated dir as-is; its real content is what downstream planning should see.
+    detection.dirSignatures.set(CLINERULES_NEW, treeSignature(await walkTree(legacyAbs)));
+  }
 }
 
 export async function plan(detection: Detection, choices: Choices): Promise<Plan> {

@@ -377,6 +377,31 @@ describe(".clinerules migration", () => {
     expect(lst.isSymbolicLink()).toBe(true);
     expect(await fsp.readlink(path.join(root, ".cline/rules"))).toBe("../.claude/rules");
   });
+
+  it("migrates and symlinks .cline/rules even when legacy content DIFFERS from canonical", async () => {
+    const root = await makeProject();
+    // The common case: legacy Cline content differs from the chosen canonical (claude).
+    await writeRel(root, ".clinerules/review.md", "legacy\n");
+    await writeRel(root, ".claude/rules/review.md", "claude\n");
+    const d = await detect(root);
+    d.isGitRepo = true;
+    const p = await plan(d, ALL(d));
+
+    // A git-recoverable, just-migrated deprecated-location dir must become the symlink regardless
+    // of content difference — not a skipped conflict.
+    expect(p.actions.filter((a) => a.kind === "migrate")).toHaveLength(1);
+    expect(symlinkActions(p, ".cline/rules")[0]?.op).toBe("replace");
+    expect(p.conflicts.find((c) => c.targetPath === ".cline/rules")).toBeUndefined();
+
+    const summary = await applyPlan(d, p, false);
+    expect(summary.errors).toHaveLength(0);
+
+    const fsp = await import("node:fs/promises");
+    await expect(fsp.stat(path.join(root, ".clinerules"))).rejects.toThrow(/ENOENT/);
+    const lst = await fsp.lstat(path.join(root, ".cline/rules"));
+    expect(lst.isSymbolicLink()).toBe(true);
+    expect(await fsp.readlink(path.join(root, ".cline/rules"))).toBe("../.claude/rules");
+  });
 });
 
 describe("applyPlan dry run", () => {
