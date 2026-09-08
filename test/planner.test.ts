@@ -196,25 +196,54 @@ describe("plan: skills", () => {
 });
 
 describe("plan: rules", () => {
-  it("generates adapters for missing rule dirs with correct names", async () => {
+  it("symlinks same-format targets and generates adapters for differing-format targets", async () => {
     const root = await makeProject();
     await writeRel(root, ".cursor/rules/review.mdc", "---\ndescription: Review\n---\nDo review.\n");
     const d = await detect(root);
     const p = await plan(d, ALL(d));
 
-    const targets = p.actions
-      .filter((a) => a.kind === "generate")
-      .map((a) => (a.kind === "generate" ? a.targetPath : ""))
-      .sort();
-    expect(targets).toEqual([
-      ".claude/rules/review.md",
-      ".cline/rules/review.md",
+    // Cursor is canonical (mdc format). Claude and Cline share adapter:"claude" → symlink dirs.
+    const symlinkTargets = symlinkActions(p).map((a) => a.targetPath).sort();
+    expect(symlinkTargets).toContain(".claude/rules");
+    expect(symlinkTargets).toContain(".cline/rules");
+
+    // Windsurf and Copilot use differing formats → generate per-file adapters (not .cline/rules).
+    const generateTargets = generateActions(p).map((a) => a.targetPath).sort();
+    expect(generateTargets).toEqual([
       ".github/instructions/review.instructions.md",
       ".windsurf/rules/review.md",
     ]);
+    expect(generateTargets).not.toContain(".cline/rules/review.md");
+    expect(generateTargets).not.toContain(".claude/rules/review.md");
+  });
 
-    const summary = await applyPlan(d, p, false);
-    expect(summary.generated).toBe(4);
+  it("symlinks Cline rules dir to Claude rules when Claude is canonical", async () => {
+    const root = await makeProject();
+    await writeRel(root, ".claude/rules/review.md", "# Review\nDo review.\n");
+    const d = await detect(root);
+    const p = await plan(d, ALL(d));
+
+    // Claude is canonical (adapter:"claude"). Cline shares format → symlink.
+    expect(symlinkActions(p, ".cline/rules")[0]?.op).toBe("create");
+    // Cursor/Windsurf/Copilot still generate per-file adapters.
+    const generateTargets = generateActions(p).map((a) => a.targetPath).sort();
+    expect(generateTargets).toContain(".cursor/rules/review.mdc");
+    expect(generateTargets).toContain(".windsurf/rules/review.md");
+    expect(generateTargets).not.toContain(".cline/rules/review.md");
+  });
+
+  it("symlinks Claude rules dir to Cline rules when Cline is canonical (reverse direction)", async () => {
+    const root = await makeProject();
+    await writeRel(root, ".cline/rules/review.md", "# Review\nDo review.\n");
+    const d = await detect(root);
+    const p = await plan(d, ALL(d));
+
+    // Cline is canonical. Claude shares adapter:"claude" format → symlink dir.
+    expect(symlinkActions(p, ".claude/rules")[0]?.op).toBe("create");
+    // Cursor/Windsurf/Copilot still generate.
+    const generateTargets = generateActions(p).map((a) => a.targetPath).sort();
+    expect(generateTargets).toContain(".cursor/rules/review.mdc");
+    expect(generateTargets).not.toContain(".claude/rules/review.md");
   });
 
   it("regenerates drifted generated files and counts fresh ones as noop", async () => {
