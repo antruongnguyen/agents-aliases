@@ -329,6 +329,18 @@ describe(".clinerules migration", () => {
     expect(p.warnings.some((w) => w.includes(".clinerules is deprecated"))).toBe(true);
   });
 
+  it("blocks when a non-rule file under .clinerules is dirty", async () => {
+    const root = await makeProject();
+    await writeRel(root, ".clinerules/scratch.txt", "notes\n");
+    const d = await detect(root);
+    d.isGitRepo = true;
+    d.dirtyPaths.add(".clinerules/scratch.txt");
+    const p = await plan(d, ALL(d));
+
+    expect(p.actions.filter((a) => a.kind === "migrate")).toHaveLength(0);
+    expect(p.blocked.some((b) => b.includes(".clinerules: cannot migrate"))).toBe(true);
+  });
+
   it("blocks (no migrate action) when not a git repo", async () => {
     const root = await makeProject();
     await writeRel(root, ".clinerules/review.md", "# review rule\n");

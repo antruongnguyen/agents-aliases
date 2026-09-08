@@ -397,11 +397,8 @@ async function planClinerulesMigration(detection: Detection, plan: Plan): Promis
     return;
   }
 
-  // Also block if any file under .clinerules is dirty.
-  const legacyFiles = await listRuleFiles(legacyAbs);
-  const dirty = legacyFiles.some((f) =>
-    detection.dirtyPaths.has(`${CLINERULES_LEGACY}/${f}`),
-  );
+  // Also block if any path under .clinerules is dirty.
+  const dirty = [...detection.dirtyPaths].some((p) => p.startsWith(`${CLINERULES_LEGACY}/`));
   if (dirty) {
     plan.blocked.push(
       `.clinerules: cannot migrate to ${CLINERULES_NEW} — directory has uncommitted changes. Commit or stash, then re-run.`,
