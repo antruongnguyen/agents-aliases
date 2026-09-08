@@ -20,6 +20,7 @@ export interface PlanSummary {
   scaffolds: string[];
   canonicalGroups: CanonicalGroup[];
   generatedGroups: GeneratedGroup[];
+  migrations: string[];
   warnings: string[];
   blocked: string[];
   conflicts: string[];
@@ -47,6 +48,7 @@ export function summarizePlan(planResult: Plan): PlanSummary {
     scaffolds: [],
     canonicalGroups: [],
     generatedGroups: [],
+    migrations: [],
     warnings: [...planResult.warnings],
     blocked: [...planResult.blocked],
     conflicts: planResult.conflicts.map(
@@ -60,6 +62,11 @@ export function summarizePlan(planResult: Plan): PlanSummary {
   for (const action of planResult.actions) {
     if (action.kind === "scaffold") {
       summary.scaffolds.push(action.path);
+      continue;
+    }
+
+    if (action.kind === "migrate") {
+      summary.migrations.push(`${action.fromDir} -> ${action.toDir}`);
       continue;
     }
 
@@ -127,6 +134,13 @@ export function renderSetupSummary(planResult: Plan): string {
     if (lines.length > 0) lines.push("");
     lines.push(pc.cyan(group.targetDir));
     lines.push(`  ${pc.blue("generate")}: ${group.files.join(pc.dim(", "))}`);
+  }
+
+  if (s.migrations.length > 0) {
+    if (lines.length > 0) lines.push("");
+    for (const m of s.migrations) {
+      lines.push(`  ${pc.green("migrate")}: ${m}`);
+    }
   }
 
   if (s.noopCount > 0) {

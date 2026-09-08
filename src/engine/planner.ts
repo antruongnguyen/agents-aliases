@@ -38,7 +38,8 @@ export type Action =
       sourceRelPath: string;
       format: AdapterFormat;
       note?: string;
-    };
+    }
+  | { kind: "migrate"; fromDir: string; toDir: string };
 
 export interface Conflict {
   targetPath: string;
@@ -359,8 +360,61 @@ async function compareGenerated(
   }
 }
 
+const CLINERULES_LEGACY = ".clinerules";
+const CLINERULES_NEW = ".cline/rules";
+
+async function planClinerulesMigration(detection: Detection, plan: Plan): Promise<void> {
+  const legacyAbs = path.resolve(detection.root, CLINERULES_LEGACY);
+  let legacyExists = false;
+  try {
+    const stat = await fsp.stat(legacyAbs);
+    legacyExists = stat.isDirectory();
+  } catch {
+    // not present
+  }
+  if (!legacyExists) return;
+
+  const newAbs = path.resolve(detection.root, CLINERULES_NEW);
+  let newExists = false;
+  try {
+    const stat = await fsp.stat(newAbs);
+    newExists = stat.isDirectory();
+  } catch {
+    // not present
+  }
+
+  if (newExists) {
+    plan.warnings.push(
+      `.clinerules is deprecated — ${CLINERULES_NEW} already exists. Merge .clinerules manually, then remove it.`,
+    );
+    return;
+  }
+
+  if (!detection.isGitRepo) {
+    plan.blocked.push(
+      `.clinerules: cannot migrate to ${CLINERULES_NEW} outside a git repo (no safety net). Init a git repo and re-run.`,
+    );
+    return;
+  }
+
+  // Also block if any file under .clinerules is dirty.
+  const legacyFiles = await listRuleFiles(legacyAbs);
+  const dirty = legacyFiles.some((f) =>
+    detection.dirtyPaths.has(`${CLINERULES_LEGACY}/${f}`),
+  );
+  if (dirty) {
+    plan.blocked.push(
+      `.clinerules: cannot migrate to ${CLINERULES_NEW} — directory has uncommitted changes. Commit or stash, then re-run.`,
+    );
+    return;
+  }
+
+  plan.actions.push({ kind: "migrate", fromDir: CLINERULES_LEGACY, toDir: CLINERULES_NEW });
+}
+
 export async function plan(detection: Detection, choices: Choices): Promise<Plan> {
   const result = emptyPlan();
+  await planClinerulesMigration(detection, result);
   await planAliasConcern(detection, choices.instructions, "instructions", result);
   await planAliasConcern(detection, choices.skills, "skills", result);
   await planAliasConcern(detection, choices.plugins, "plugins", result);
@@ -415,6 +469,7 @@ export interface ApplySummary {
   replaced: number;
   repaired: number;
   generated: number;
+  migrated: number;
   errors: string[];
 }
 
@@ -429,6 +484,7 @@ export async function applyPlan(
     replaced: 0,
     repaired: 0,
     generated: 0,
+    migrated: 0,
     errors: [],
   };
 
@@ -439,6 +495,14 @@ export async function applyPlan(
           await fsp.writeFile(path.resolve(detection.root, action.path), SCAFFOLD_STUB, { flag: "wx" });
         }
         summary.scaffolded += 1;
+      } else if (action.kind === "migrate") {
+        if (!dryRun) {
+          const fromAbs = path.resolve(detection.root, action.fromDir);
+          const toAbs = path.resolve(detection.root, action.toDir);
+          await fsp.mkdir(path.dirname(toAbs), { recursive: true });
+          await fsp.rename(fromAbs, toAbs);
+        }
+        summary.migrated += 1;
       } else if (action.kind === "symlink") {
         if (action.op === "replace") {
           if (!dryRun) await replaceWithSymlink(detection.root, action.canonicalPath, action.targetPath);
@@ -448,7 +512,7 @@ export async function applyPlan(
           if (action.op === "create") summary.created += 1;
           else summary.repaired += 1;
         }
-      } else {
+      } else if (action.kind === "generate") {
         if (!dryRun) {
           await fsp.mkdir(path.dirname(path.resolve(detection.root, action.targetPath)), {
             recursive: true,
@@ -474,6 +538,7 @@ export async function applyPlan(
 
 export function describeAction(action: Action, root: string): string {
   if (action.kind === "scaffold") return `scaffold ${action.path}`;
+  if (action.kind === "migrate") return `migrate  ${action.fromDir} -> ${action.toDir}`;
   if (action.kind === "symlink") {
     return `${action.op === "create" ? "link" : action.op}  ${action.targetPath} -> ${relativeLinkTarget(root, action.canonicalPath, action.targetPath)}${
       action.note ? `   (${action.note})` : ""

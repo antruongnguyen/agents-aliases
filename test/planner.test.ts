@@ -297,6 +297,50 @@ describe("plan: rules", () => {
   });
 });
 
+describe(".clinerules migration", () => {
+  it("migrates .clinerules/ to .cline/rules/ in a clean git repo", async () => {
+    const root = await makeProject();
+    await writeRel(root, ".clinerules/review.md", "# review rule\n");
+    const d = await detect(root);
+    d.isGitRepo = true;
+    const p = await plan(d, ALL(d));
+
+    const migrateActions = p.actions.filter((a) => a.kind === "migrate");
+    expect(migrateActions).toHaveLength(1);
+    expect(p.warnings.some((w) => w.includes(".clinerules"))).toBe(false);
+    expect(p.blocked.some((b) => b.includes(".clinerules"))).toBe(false);
+
+    const fsp = await import("node:fs/promises");
+    await applyPlan(d, p, false);
+    const migrated = await fsp.readFile(path.join(root, ".cline/rules/review.md"), "utf8");
+    expect(migrated).toBe("# review rule\n");
+    await expect(fsp.stat(path.join(root, ".clinerules"))).rejects.toThrow(/ENOENT/);
+  });
+
+  it("warns (no migrate action) when both .clinerules and .cline/rules exist", async () => {
+    const root = await makeProject();
+    await writeRel(root, ".clinerules/old.md", "# old\n");
+    await writeRel(root, ".cline/rules/new.md", "# new\n");
+    const d = await detect(root);
+    d.isGitRepo = true;
+    const p = await plan(d, ALL(d));
+
+    expect(p.actions.filter((a) => a.kind === "migrate")).toHaveLength(0);
+    expect(p.warnings.some((w) => w.includes(".clinerules is deprecated"))).toBe(true);
+  });
+
+  it("blocks (no migrate action) when not a git repo", async () => {
+    const root = await makeProject();
+    await writeRel(root, ".clinerules/review.md", "# review rule\n");
+    const d = await detect(root);
+    // d.isGitRepo stays false
+    const p = await plan(d, ALL(d));
+
+    expect(p.actions.filter((a) => a.kind === "migrate")).toHaveLength(0);
+    expect(p.blocked.some((b) => b.includes(".clinerules: cannot migrate"))).toBe(true);
+  });
+});
+
 describe("applyPlan dry run", () => {
   it("makes no filesystem changes when dryRun is true", async () => {
     const root = await makeProject();
