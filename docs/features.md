@@ -24,13 +24,13 @@ Which files exist per agent and concern, and how they are wired:
 | **OpenCode** | reads `AGENTS.md` (no extra file) | `.opencode/skills` → link | — | — |
 | **Cline** | — | `.cline/skills` → link | `.cline/rules/<name>.md` — adapter | — |
 
-\* Codex, Cursor, Windsurf, Zed, Jules and the Copilot coding agent read `AGENTS.md` natively; only Claude Code and Gemini CLI need their own instruction files. Cline reads its own `.clinerules`/UI guidance and is not wired for instructions here.
+\* Codex, Cursor, Windsurf, Zed, Jules and the Copilot coding agent read `AGENTS.md` natively; only Claude Code and Gemini CLI need their own instruction files. Cline reads `AGENTS.md` natively (like Codex/Cursor/Windsurf) and needs no instruction file; it is wired for skills (`.cline/skills`) and rules (`.cline/rules`, symlinked to Claude's rules dir when Claude is canonical since they share the same adapter format).
 
 Legend: **canonical** = real file you edit · `→ link` = relative symlink to canonical · **adapter** = generated (canonical body + tool frontmatter + marker) · `—` = not currently wired.
 
 ### Cross-agent equivalents
 
-Instructions read natively (no extra file needed) by Codex, Cursor, Windsurf, Zed, Jules, and the GitHub Copilot coding agent — all consume `AGENTS.md` at the repo root. Only Claude Code (`CLAUDE.md`) and Gemini CLI (`GEMINI.md`) require a per-tool file, so those are the only instruction symlinks created. Hermes Agent also reads `AGENTS.md`/`CLAUDE.md` natively (via its `.hermes.md → AGENTS.md → CLAUDE.md` chain), so it needs no wiring. Cline is the exception among wired tools: its guidance lives in `.clinerules/` and its skills in `.cline/skills/`, which is why it appears for skills and rules but not instructions.
+Instructions read natively (no extra file needed) by Codex, Cursor, Windsurf, Zed, Jules, and the GitHub Copilot coding agent — all consume `AGENTS.md` at the repo root. Only Claude Code (`CLAUDE.md`) and Gemini CLI (`GEMINI.md`) require a per-tool file, so those are the only instruction symlinks created. Hermes Agent also reads `AGENTS.md`/`CLAUDE.md` natively (via its `.hermes.md → AGENTS.md → CLAUDE.md` chain), so it needs no wiring. Cline also reads `AGENTS.md` natively and needs no instruction wiring; its rules live in `.cline/rules` (symlinked to the canonical rules dir when Claude is canonical, since both use the same plain-md adapter format) and its skills in `.cline/skills`.
 
 Default wiring with "select all":
 
