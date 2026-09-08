@@ -125,7 +125,7 @@ export const PRESETS: AgentPreset[] = [
     id: "rules-cline",
     tool: "Cline",
     concern: "rules",
-    path: ".clinerules",
+    path: ".cline/rules",
     kind: "dir",
     adapter: "claude",
   },

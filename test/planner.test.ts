@@ -195,7 +195,7 @@ describe("plan: rules", () => {
       .sort();
     expect(targets).toEqual([
       ".claude/rules/review.md",
-      ".clinerules/review.md",
+      ".cline/rules/review.md",
       ".github/instructions/review.instructions.md",
       ".windsurf/rules/review.md",
     ]);

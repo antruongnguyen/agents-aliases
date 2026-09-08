@@ -22,7 +22,7 @@ Which files exist per agent and concern, and how they are wired:
 | **Cursor** | reads `AGENTS.md` (no extra file) | — | `.cursor/rules/<name>.mdc` — adapter | — |
 | **Windsurf** | reads `AGENTS.md` (no extra file) | — | `.windsurf/rules/<name>.md` — adapter | — |
 | **OpenCode** | reads `AGENTS.md` (no extra file) | `.opencode/skills` → link | — | — |
-| **Cline** | — | `.cline/skills` → link | `.clinerules/<name>.md` — adapter | — |
+| **Cline** | — | `.cline/skills` → link | `.cline/rules/<name>.md` — adapter | — |
 
 \* Codex, Cursor, Windsurf, Zed, Jules and the Copilot coding agent read `AGENTS.md` natively; only Claude Code and Gemini CLI need their own instruction files. Cline reads its own `.clinerules`/UI guidance and is not wired for instructions here.
 
@@ -38,7 +38,7 @@ Default wiring with "select all":
 | --- | --- | --- |
 | Instructions | `AGENTS.md` | `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md` (3 symlinks) |
 | Skills | `.agents/skills` | `.claude/skills`, `.codex/skills`, `.opencode/skills`, `.cline/skills` (4 dir symlinks) |
-| Rules | first existing of `.claude/rules` › `.cursor/rules` › `.windsurf/rules` › `.github/instructions` › `.clinerules` | adapters in the other four dirs |
+| Rules | first existing of `.claude/rules` › `.cursor/rules` › `.windsurf/rules` › `.github/instructions` › `.cline/rules` | adapters in the other four dirs |
 | Plugins | `.claude/plugins` | custom dir targets |
 
 ## Detection matrix
@@ -61,7 +61,7 @@ Default wiring with "select all":
 | rules | `rules-cursor` | `.cursor/rules` | Cursor | adapter `.mdc` |
 | rules | `rules-windsurf` | `.windsurf/rules` | Windsurf | adapter `.md` |
 | rules | `rules-copilot` | `.github/instructions` | GitHub Copilot (scoped) | adapter `.instructions.md` |
-| rules | `rules-cline` | `.clinerules` | Cline | adapter `.md` |
+| rules | `rules-cline` | `.cline/rules` | Cline | adapter `.md` |
 | plugins | `plugins-claude` | `.claude/plugins` | Claude Code | dir symlink |
 <!-- END GENERATED: detection-matrix -->
 

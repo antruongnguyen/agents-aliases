@@ -7,6 +7,7 @@ import {
   expandAgentList,
   findPreset,
   findPresetByPath,
+  parseAgentList,
   presetsByConcern,
 } from "../src/presets.js";
 import { targetFileName } from "../src/engine/rules.js";
@@ -59,5 +60,17 @@ describe("presets", () => {
     expect(targetFileName("review.md", "mdc")).toBe("review.mdc");
     expect(targetFileName("review.mdc", "copilot-instructions")).toBe("review.instructions.md");
     expect(targetFileName("review.instructions.md", "windsurf")).toBe("review.md");
+  });
+
+  it("wires Cline rules at .cline/rules with the claude adapter", () => {
+    const p = findPreset("rules-cline");
+    expect(p?.path).toBe(".cline/rules");
+    expect(p?.adapter).toBe("claude");
+    expect(p?.kind).toBe("dir");
+  });
+
+  it("cline shortcut still expands to skills-cline + rules-cline", () => {
+    const { ids } = parseAgentList("cline");
+    expect([...ids].sort()).toEqual(["rules-cline", "skills-cline"]);
   });
 });
