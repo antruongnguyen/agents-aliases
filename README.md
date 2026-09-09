@@ -1,4 +1,4 @@
-# agents-aliases
+# agents-aliases ![NPM Version](https://img.shields.io/npm/v/agents-aliases)
 
 One source of truth for every AI coding agent — zero config files.
 
