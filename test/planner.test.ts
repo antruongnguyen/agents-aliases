@@ -12,6 +12,7 @@ import {
   type Choices,
   type Plan,
 } from "../src/engine/planner.js";
+import { readLinkText } from "../src/engine/symlink.js";
 import { linkRel, makeProject, writeRel } from "./helpers.js";
 
 type SymlinkAction = Extract<Action, { kind: "symlink" }>;
@@ -375,7 +376,7 @@ describe(".clinerules migration", () => {
     await expect(fsp.stat(path.join(root, ".clinerules"))).rejects.toThrow(/ENOENT/);
     const lst = await fsp.lstat(path.join(root, ".cline/rules"));
     expect(lst.isSymbolicLink()).toBe(true);
-    expect(await fsp.readlink(path.join(root, ".cline/rules"))).toBe("../.claude/rules");
+    expect(await readLinkText(path.join(root, ".cline/rules"))).toBe("../.claude/rules");
   });
 
   it("migrates and symlinks .cline/rules even when legacy content DIFFERS from canonical", async () => {
@@ -400,7 +401,7 @@ describe(".clinerules migration", () => {
     await expect(fsp.stat(path.join(root, ".clinerules"))).rejects.toThrow(/ENOENT/);
     const lst = await fsp.lstat(path.join(root, ".cline/rules"));
     expect(lst.isSymbolicLink()).toBe(true);
-    expect(await fsp.readlink(path.join(root, ".cline/rules"))).toBe("../.claude/rules");
+    expect(await readLinkText(path.join(root, ".cline/rules"))).toBe("../.claude/rules");
   });
 });
 
